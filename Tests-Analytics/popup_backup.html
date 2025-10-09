@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TestBuilder</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      width: 350px;
+      min-height: 400px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      font-size: 14px;
+      background: #f8f9fa;
+    }
+
+    .header {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 16px;
+      text-align: center;
+    }
+
+    .header h1 {
+      font-size: 18px;
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+
+    .header p {
+      font-size: 12px;
+      opacity: 0.9;
+    }
+
+    .content {
+      padding: 16px;
+    }
+
+    .section {
+      margin-bottom: 16px;
+    }
+
+    .section h3 {
+      color: #333;
+      margin-bottom: 8px;
+      font-size: 14px;
+      font-weight: 600;
+    }
+
+    .btn {
+      width: 100%;
+      padding: 12px;
+      border: none;
+      border-radius: 6px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      margin-bottom: 8px;
+      transition: all 0.2s;
+    }
+
+    .btn-primary {
+      background: #667eea;
+      color: white;
+    }
+
+    .btn-primary:hover {
+      background: #5a6fd8;
+    }
+
+    .btn-secondary {
+      background: #e9ecef;
+      color: #495057;
+    }
+
+    .btn-secondary:hover {
+      background: #dee2e6;
+    }
+
+    .btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .status {
+      background: #fff;
+      border: 1px solid #e1e5e9;
+      border-radius: 6px;
+      padding: 12px;
+      margin-bottom: 16px;
+    }
+
+    .status-indicator {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #28a745;
+    }
+
+    .links {
+      border-top: 1px solid #e1e5e9;
+      padding-top: 16px;
+      margin-top: 16px;
+    }
+
+    .link {
+      display: block;
+      padding: 8px 0;
+      color: #667eea;
+      text-decoration: none;
+      font-size: 12px;
+    }
+
+    .link:hover {
+      text-decoration: underline;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>🧪 TestBuilder</h1>
+    <p>Automatización de pruebas con IA</p>
+  </div>
+
+  <div class="content">
+    <div class="section">
+      <div class="status">
+        <div class="status-indicator">
+          <div class="status-dot"></div>
+          <span>Firebase conectado</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <h3>🎬 Grabación</h3>
+      <button id="startRecord" class="btn btn-primary">🔴 Iniciar Grabación</button>
+      <button id="stopRecord" class="btn btn-secondary" disabled>⏹ Detener Grabación</button>
+    </div>
+
+    <div class="section">
+      <h3>💾 Gestión</h3>
+      <button id="saveTest" class="btn btn-secondary" disabled>💾 Guardar Test</button>
+      <button id="viewTests" class="btn btn-secondary">📋 Ver Tests</button>
+    </div>
+
+    <div class="section">
+      <h3>⚡ Exportar</h3>
+      <button id="exportPlaywright" class="btn btn-secondary" disabled>🎭 Playwright</button>
+      <button id="exportJira" class="btn btn-secondary" disabled>📊 Jira CSV</button>
+    </div>
+
+    <div class="links">
+      <a href="http://127.0.0.1:4240/" target="_blank" class="link">🎯 Abrir Firebase UI</a>
+      <a href="http://127.0.0.1:5250/" target="_blank" class="link">🌍 Abrir Panel Web</a>
+    </div>
+  </div>
+
+  <script>
+    // DOM elements
+    const startRecordBtn = document.getElementById('startRecord');
+    const stopRecordBtn = document.getElementById('stopRecord');
+    const saveTestBtn = document.getElementById('saveTest');
+    const viewTestsBtn = document.getElementById('viewTests');
+    const exportPlaywrightBtn = document.getElementById('exportPlaywright');
+    const exportJiraBtn = document.getElementById('exportJira');
+
+    // State
+    let isRecording = false;
+
+    // Event listeners
+    startRecordBtn.addEventListener('click', startRecording);
+    stopRecordBtn.addEventListener('click', stopRecording);
+    saveTestBtn.addEventListener('click', saveTest);
+    viewTestsBtn.addEventListener('click', viewTests);
+    exportPlaywrightBtn.addEventListener('click', exportPlaywright);
+    exportJiraBtn.addEventListener('click', exportJira);
+
+    // Functions
+    function startRecording() {
+      isRecording = true;
+      startRecordBtn.disabled = true;
+      stopRecordBtn.disabled = false;
+      
+      // Send message to content script
+      chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
+        chrome.tabs.sendMessage(tabs[0].id, {action: 'startRecording'});
+      });
+      
+      console.log('Recording started from popup');
+    }
+
+    function stopRecording() {
+      isRecording = false;
+      startRecordBtn.disabled = false;
+      stopRecordBtn.disabled = true;
+      saveTestBtn.disabled = false;
+      exportPlaywrightBtn.disabled = false;
+      exportJiraBtn.disabled = false;
+      
+      // Send message to content script
+      chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
+        chrome.tabs.sendMessage(tabs[0].id, {action: 'stopRecording'});
+      });
+      
+      console.log('Recording stopped from popup');
+    }
+
+    function saveTest() {
+      chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
+        chrome.tabs.sendMessage(tabs[0].id, {action: 'saveTest'});
+      });
+      saveTestBtn.disabled = true;
+      console.log('Test saved from popup');
+    }
+
+    function viewTests() {
+      chrome.tabs.create({url: 'http://127.0.0.1:4240/firestore'});
+    }
+
+    function exportPlaywright() {
+      chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
+        chrome.tabs.sendMessage(tabs[0].id, {action: 'exportPlaywright'});
+      });
+      console.log('Exporting to Playwright');
+    }
+
+    function exportJira() {
+      chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
+        chrome.tabs.sendMessage(tabs[0].id, {action: 'exportJira'});
+      });
+      console.log('Exporting to Jira CSV');
+    }
+
+  <script src="popup.js"></script>
+</body>
+</html>
