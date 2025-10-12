@@ -1,0 +1,256 @@
+{
+  "name": "TestBuilder Two-Phase Workflow",
+  "active": true,
+  "nodes": [
+    {
+      "parameters": {
+        "path": "/webhook/action-capture",
+        "options": {}
+      },
+      "name": "FASE 1: Action Capture",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 200],
+      "id": "action-capture-webhook"
+    },
+    {
+      "parameters": {
+        "functionCode": "// FASE 1: Almacenar acciones individuales\nconst actionData = $json;\n\n// Validar estructura de acción\nif (!actionData.type || !actionData.sessionId) {\n  throw new Error('Invalid action data: missing type or sessionId');\n}\n\n// Enriquecer con metadata\nconst enrichedAction = {\n  ...actionData,\n  capturedAt: new Date().toISOString(),\n  actionId: `action_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`\n};\n\n// Almacenar en contexto global para la sesión\nconst sessionId = actionData.sessionId;\nconst sessionKey = `session_${sessionId}`;\n\n// Recuperar acciones existentes de la sesión\nlet sessionActions = $getWorkflowStaticData('node')[sessionKey] || [];\n\n// Agregar nueva acción\nsessionActions.push(enrichedAction);\n\n// Guardar de vuelta\n$getWorkflowStaticData('node')[sessionKey] = sessionActions;\n\nconsole.log(`Action stored for session ${sessionId}. Total actions: ${sessionActions.length}`);\n\nreturn [{\n  json: {\n    success: true,\n    message: 'Action captured and stored',\n    sessionId: sessionId,\n    actionId: enrichedAction.actionId,\n    totalActions: sessionActions.length,\n    timestamp: enrichedAction.capturedAt\n  }\n}];"
+      },
+      "name": "Store Action in Session",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [460, 200],
+      "id": "store-action"
+    },
+    {
+      "parameters": {
+        "path": "/webhook/generate-tests",
+        "options": {}
+      },
+      "name": "FASE 2: Generate Tests Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 400],
+      "id": "generate-tests-webhook"
+    },
+    {
+      "parameters": {
+        "functionCode": "// FASE 2: Recuperar acciones almacenadas y procesar\nconst request = $json;\nconst sessionId = request.sessionId;\n\nif (!sessionId) {\n  throw new Error('Session ID is required for test generation');\n}\n\nconst sessionKey = `session_${sessionId}`;\nconst sessionActions = $getWorkflowStaticData('node')[sessionKey] || [];\n\nif (sessionActions.length === 0) {\n  return [{\n    json: {\n      success: false,\n      error: 'No actions found for this session',\n      sessionId: sessionId\n    }\n  }];\n}\n\n// Validar mínimo de acciones\nif (sessionActions.length < 3) {\n  return [{\n    json: {\n      success: false,\n      error: 'At least 3 actions required for test generation',\n      sessionId: sessionId,\n      currentActions: sessionActions.length\n    }\n  }];\n}\n\n// Preparar datos para procesamiento\nconst processedData = {\n  sessionId: sessionId,\n  totalActions: sessionActions.length,\n  captureStartTime: sessionActions[0]?.capturedAt,\n  captureEndTime: sessionActions[sessionActions.length - 1]?.capturedAt,\n  sourceUrl: request.url || sessionActions[0]?.url || '',\n  pageTitle: request.title || sessionActions[0]?.title || 'Test Session',\n  userAgent: request.userAgent || 'TestBuilder Extension',\n  actions: sessionActions.map((action, index) => ({\n    ...action,\n    actionIndex: index + 1,\n    relativeTime: action.timestamp ? action.timestamp - sessionActions[0].timestamp : 0\n  }))\n};\n\nconsole.log(`Processing ${sessionActions.length} actions for session ${sessionId}`);\n\nreturn [{\n  json: processedData\n}];"
+      },
+      "name": "Retrieve Session Actions",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [460, 400],
+      "id": "retrieve-actions"
+    },
+    {
+      "parameters": {
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpQueryAuth",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "key",
+              "value": "={{$credentials.geminiApi.apiKey}}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "body": "={{JSON.stringify({\n  contents: [{\n    parts: [{\n      text: `Analiza estas acciones de usuario capturadas en tiempo real y genera un test Playwright robusto:\n\nSESIÓN: ${$json.sessionId}\nURL: ${$json.sourceUrl}\nTÍTULO: ${$json.pageTitle}\nACCIONES CAPTURADAS: ${$json.totalActions}\nPERÍODO: ${$json.captureStartTime} - ${$json.captureEndTime}\n\n${$json.actions.map(a => `${a.actionIndex}. ${a.type} en '${a.selector || 'N/A'}' ${a.value ? 'valor: ' + a.value : ''} (${a.relativeTime}ms)`).join('\\n')}\n\nGenera un test Playwright completo en TypeScript con:\n1. Imports y setup apropiados\n2. Selectores robustos y resilientes  \n3. Esperas apropiadas entre acciones\n4. Assertions relevantes para cada paso\n5. Manejo de errores y timeouts\n6. Comentarios explicativos\n\nFormato: Código TypeScript puro sin markdown.`\n    }]\n  }],\n  generationConfig: {\n    maxOutputTokens: 4000,\n    temperature: 0.2\n  }\n})}}",
+        "options": {}
+      },
+      "name": "Generate Playwright Test",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [680, 300],
+      "id": "generate-playwright"
+    },
+    {
+      "parameters": {
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpQueryAuth",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "key",
+              "value": "={{$credentials.geminiApi.apiKey}}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "body": "={{JSON.stringify({\n  contents: [{\n    parts: [{\n      text: `Convierte estas acciones de usuario capturadas en tiempo real en un test manual formato CSV:\n\nSESIÓN: ${$json.sessionId}\nURL: ${$json.sourceUrl}\nTÍTULO: ${$json.pageTitle}\nPERÍODO DE CAPTURA: ${$json.captureStartTime} - ${$json.captureEndTime}\n\n${$json.actions.map(a => `${a.actionIndex}. ${a.type} en '${a.selector || 'N/A'}' ${a.value ? 'valor: ' + a.value : ''}`).join('\\n')}\n\nGenera CSV con columnas:\nStep,Action,Description,Element,Expected_Result,Notes\n\nCada fila debe describir un paso manual claro y específico para testing manual.`\n    }]\n  }],\n  generationConfig: {\n    maxOutputTokens: 2000,\n    temperature: 0.1\n  }\n})}}",
+        "options": {}
+      },
+      "name": "Generate Manual Test CSV",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [680, 500],
+      "id": "generate-csv"
+    },
+    {
+      "parameters": {
+        "functionCode": "// Procesar respuesta de Playwright\nconst response = $json.candidates?.[0]?.content?.parts?.[0]?.text || '';\n\nconst cleanCode = response\n  .replace(/```typescript/gi, '')\n  .replace(/```javascript/gi, '')\n  .replace(/```/g, '')\n  .trim();\n\nconst isValidPlaywright = cleanCode.includes('page.') && \n                         (cleanCode.includes('test(') || cleanCode.includes('test.describe'));\n\nif (!isValidPlaywright) {\n  throw new Error('Generated code is not valid Playwright test');\n}\n\nreturn [{\n  json: {\n    testType: 'playwright',\n    generatedCode: cleanCode,\n    filename: `playwright-test-${Date.now()}.spec.ts`,\n    sessionId: $('Retrieve Session Actions').item.json.sessionId,\n    generatedAt: new Date().toISOString(),\n    codeLength: cleanCode.length,\n    linesCount: cleanCode.split('\\n').length\n  }\n}];"
+      },
+      "name": "Process Playwright Response",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [900, 300],
+      "id": "process-playwright"
+    },
+    {
+      "parameters": {
+        "functionCode": "// Procesar respuesta de CSV\nconst response = $json.candidates?.[0]?.content?.parts?.[0]?.text || '';\n\nconst cleanCsv = response\n  .replace(/```csv/gi, '')\n  .replace(/```/g, '')\n  .trim();\n\nconst lines = cleanCsv.split('\\n').filter(line => line.trim());\nconst hasHeader = lines[0] && lines[0].includes('Step') && lines[0].includes('Action');\n\nif (!hasHeader || lines.length < 2) {\n  throw new Error('Generated CSV is not valid');\n}\n\nreturn [{\n  json: {\n    testType: 'manual',\n    generatedCsv: cleanCsv,\n    filename: `manual-test-${Date.now()}.csv`,\n    sessionId: $('Retrieve Session Actions').item.json.sessionId,\n    generatedAt: new Date().toISOString(),\n    stepsCount: lines.length - 1,\n    csvSize: cleanCsv.length\n  }\n}];"
+      },
+      "name": "Process CSV Response",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [900, 500],
+      "id": "process-csv"
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "options": {}
+      },
+      "name": "Combine Results",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 2,
+      "position": [1120, 400],
+      "id": "combine-results"
+    },
+    {
+      "parameters": {
+        "functionCode": "// Crear respuesta final con cleanup de sesión\nconst playwrightData = $input.first()?.json || {};\nconst csvData = $input.last()?.json || {};\nconst originalData = $('Retrieve Session Actions').item.json;\n\n// Limpiar datos de sesión después del procesamiento\nconst sessionKey = `session_${originalData.sessionId}`;\ndelete $getWorkflowStaticData('node')[sessionKey];\n\nconst finalResult = {\n  success: true,\n  sessionId: originalData.sessionId,\n  message: 'Tests generated successfully from captured actions',\n  timestamp: new Date().toISOString(),\n  summary: {\n    actionsProcessed: originalData.totalActions,\n    playwrightGenerated: !!playwrightData.generatedCode,\n    csvGenerated: !!csvData.generatedCsv,\n    captureStartTime: originalData.captureStartTime,\n    captureEndTime: originalData.captureEndTime\n  },\n  tests: {\n    playwright: {\n      filename: playwrightData.filename || '',\n      linesCount: playwrightData.linesCount || 0,\n      code: playwrightData.generatedCode || ''\n    },\n    manual: {\n      filename: csvData.filename || '',\n      stepsCount: csvData.stepsCount || 0,\n      csv: csvData.generatedCsv || ''\n    }\n  },\n  analysis: {\n    totalDuration: originalData.captureEndTime && originalData.captureStartTime ? \n      new Date(originalData.captureEndTime) - new Date(originalData.captureStartTime) : 0,\n    actionTypes: originalData.actions.reduce((acc, action) => {\n      acc[action.type] = (acc[action.type] || 0) + 1;\n      return acc;\n    }, {})\n  }\n};\n\nconsole.log(`Session ${originalData.sessionId} processed and cleaned up`);\n\nreturn [{json: finalResult}];"
+      },
+      "name": "Final Response & Cleanup",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [1340, 400],
+      "id": "final-response"
+    }
+  ],
+  "connections": {
+    "FASE 1: Action Capture": {
+      "main": [
+        [
+          {
+            "node": "Store Action in Session",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "FASE 2: Generate Tests Trigger": {
+      "main": [
+        [
+          {
+            "node": "Retrieve Session Actions",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Retrieve Session Actions": {
+      "main": [
+        [
+          {
+            "node": "Generate Playwright Test",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Generate Manual Test CSV",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Playwright Test": {
+      "main": [
+        [
+          {
+            "node": "Process Playwright Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Manual Test CSV": {
+      "main": [
+        [
+          {
+            "node": "Process CSV Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process Playwright Response": {
+      "main": [
+        [
+          {
+            "node": "Combine Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process CSV Response": {
+      "main": [
+        [
+          {
+            "node": "Combine Results",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Combine Results": {
+      "main": [
+        [
+          {
+            "node": "Final Response & Cleanup",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": {},
+  "tags": [
+    {
+      "createdAt": "2025-10-12T00:00:00.000Z",
+      "updatedAt": "2025-10-12T00:00:00.000Z",
+      "id": "1",
+      "name": "TestBuilder"
+    },
+    {
+      "createdAt": "2025-10-12T00:00:00.000Z", 
+      "updatedAt": "2025-10-12T00:00:00.000Z",
+      "id": "2",
+      "name": "TwoPhase"
+    }
+  ],
+  "triggerCount": 2,
+  "updatedAt": "2025-10-12T00:00:00.000Z",
+  "versionId": "1"
+}

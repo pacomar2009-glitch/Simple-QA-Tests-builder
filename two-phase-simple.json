@@ -1,0 +1,137 @@
+{
+  "name": "TestBuilder Two-Phase Simple",
+  "active": false,
+  "nodes": [
+    {
+      "parameters": {
+        "path": "/webhook/action-capture",
+        "options": {}
+      },
+      "name": "FASE 1 Action Capture",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 200],
+      "id": "action-capture"
+    },
+    {
+      "parameters": {
+        "functionCode": "// FASE 1: Almacenar acciones individuales\nconst actionData = $json;\n\nif (!actionData.type || !actionData.sessionId) {\n  return [{ json: { success: false, error: 'Invalid action data' } }];\n}\n\nconst enrichedAction = {\n  ...actionData,\n  capturedAt: new Date().toISOString(),\n  actionId: `action_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`\n};\n\nconst sessionId = actionData.sessionId;\nconst sessionKey = `session_${sessionId}`;\n\n// Simulamos almacenamiento en memoria (en producción usar base de datos)\nif (!global.sessionActions) {\n  global.sessionActions = {};\n}\n\nif (!global.sessionActions[sessionKey]) {\n  global.sessionActions[sessionKey] = [];\n}\n\nglobal.sessionActions[sessionKey].push(enrichedAction);\n\nconsole.log(`Action stored for session ${sessionId}. Total: ${global.sessionActions[sessionKey].length}`);\n\nreturn [{\n  json: {\n    success: true,\n    message: 'Action captured and stored',\n    sessionId: sessionId,\n    actionId: enrichedAction.actionId,\n    totalActions: global.sessionActions[sessionKey].length,\n    timestamp: enrichedAction.capturedAt\n  }\n}];"
+      },
+      "name": "Store Action",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [460, 200],
+      "id": "store-action"
+    },
+    {
+      "parameters": {
+        "path": "/webhook/generate-tests",
+        "options": {}
+      },
+      "name": "FASE 2 Generate Tests",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 500],
+      "id": "generate-tests"
+    },
+    {
+      "parameters": {
+        "functionCode": "// FASE 2: Recuperar acciones y procesar\nconst request = $json;\nconst sessionId = request.sessionId;\n\nif (!sessionId) {\n  return [{ json: { success: false, error: 'Session ID required' } }];\n}\n\nconst sessionKey = `session_${sessionId}`;\nconst sessionActions = global.sessionActions?.[sessionKey] || [];\n\nif (sessionActions.length === 0) {\n  return [{ json: { success: false, error: 'No actions found for session' } }];\n}\n\nif (sessionActions.length < 3) {\n  return [{ json: { success: false, error: 'At least 3 actions required' } }];\n}\n\nconst processedData = {\n  sessionId: sessionId,\n  totalActions: sessionActions.length,\n  captureStartTime: sessionActions[0]?.capturedAt,\n  captureEndTime: sessionActions[sessionActions.length - 1]?.capturedAt,\n  sourceUrl: request.url || sessionActions[0]?.url || '',\n  pageTitle: request.title || sessionActions[0]?.title || 'Test Session',\n  userAgent: request.userAgent || 'TestBuilder Extension',\n  actions: sessionActions.map((action, index) => ({\n    ...action,\n    actionIndex: index + 1,\n    relativeTime: action.timestamp ? action.timestamp - sessionActions[0].timestamp : 0\n  }))\n};\n\nreturn [{ json: processedData }];"
+      },
+      "name": "Retrieve Actions",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [460, 500],
+      "id": "retrieve-actions"
+    },
+    {
+      "parameters": {
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpQueryAuth",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "key",
+              "value": "={{$credentials.geminiApi.apiKey}}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "body": "={{JSON.stringify({\n  contents: [{\n    parts: [{\n      text: `Genera un test Playwright desde estas acciones capturadas en tiempo real:\\n\\nSESIÓN: ${$json.sessionId}\\nURL: ${$json.sourceUrl}\\nACCIONES: ${$json.totalActions}\\n\\n${$json.actions.map(a => `${a.actionIndex}. ${a.type} en '${a.selector || 'N/A'}' ${a.value ? 'valor: ' + a.value : ''}`).join('\\n')}\\n\\nGenera código TypeScript completo para Playwright.`\n    }]\n  }],\n  generationConfig: {\n    maxOutputTokens: 3000,\n    temperature: 0.2\n  }\n})}}",
+        "options": {}
+      },
+      "name": "Generate Tests",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [680, 500],
+      "id": "generate-ai"
+    },
+    {
+      "parameters": {
+        "functionCode": "// Procesar respuesta y limpiar sesión\nconst response = $json.candidates?.[0]?.content?.parts?.[0]?.text || '';\nconst originalData = $('Retrieve Actions').item.json;\n\n// Limpiar sesión\nconst sessionKey = `session_${originalData.sessionId}`;\nif (global.sessionActions?.[sessionKey]) {\n  delete global.sessionActions[sessionKey];\n}\n\nconst cleanCode = response.replace(/```typescript/gi, '').replace(/```/g, '').trim();\n\nreturn [{\n  json: {\n    success: true,\n    sessionId: originalData.sessionId,\n    message: 'Tests generated from captured actions',\n    timestamp: new Date().toISOString(),\n    tests: {\n      playwright: {\n        code: cleanCode,\n        filename: `test-${Date.now()}.spec.ts`\n      }\n    },\n    summary: {\n      actionsProcessed: originalData.totalActions,\n      captureTime: originalData.captureStartTime + ' - ' + originalData.captureEndTime\n    }\n  }\n}];"
+      },
+      "name": "Process & Cleanup",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [900, 500],
+      "id": "process-cleanup"
+    }
+  ],
+  "connections": {
+    "FASE 1 Action Capture": {
+      "main": [
+        [
+          {
+            "node": "Store Action",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "FASE 2 Generate Tests": {
+      "main": [
+        [
+          {
+            "node": "Retrieve Actions",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Retrieve Actions": {
+      "main": [
+        [
+          {
+            "node": "Generate Tests",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Tests": {
+      "main": [
+        [
+          {
+            "node": "Process & Cleanup",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": {},
+  "tags": [],
+  "triggerCount": 2,
+  "updatedAt": "2025-10-12T00:00:00.000Z",
+  "versionId": "1"
+}

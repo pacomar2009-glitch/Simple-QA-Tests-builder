@@ -1,0 +1,9 @@
+Manual Test Case
+
+Test case generated from automated browser navigation
+
+Steps:
+1. Click on "Preferencias"
+
+Expected Results:
+User should successfully complete the workflow

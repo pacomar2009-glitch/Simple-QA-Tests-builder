@@ -1,0 +1,679 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Prueba Sistema Avanzado de Tokens - Chrome Extension</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 8px;
+            padding: 30px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .test-section {
+            margin-bottom: 40px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            padding: 20px;
+        }
+        
+        .test-section h2 {
+            color: #4285f4;
+            margin-top: 0;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .test-icon {
+            font-size: 1.2em;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #555;
+        }
+        
+        input, select, textarea {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+        
+        input:focus, select:focus, textarea:focus {
+            outline: none;
+            border-color: #4285f4;
+        }
+        
+        textarea {
+            height: 120px;
+            resize: vertical;
+            font-family: 'Courier New', monospace;
+        }
+        
+        .action-row {
+            display: grid;
+            grid-template-columns: 1fr 2fr 2fr auto;
+            gap: 10px;
+            align-items: center;
+            margin-bottom: 10px;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 4px;
+        }
+        
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: background-color 0.3s;
+        }
+        
+        .btn-primary {
+            background-color: #4285f4;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background-color: #3367d6;
+        }
+        
+        .btn-secondary {
+            background-color: #6c757d;
+            color: white;
+        }
+        
+        .btn-secondary:hover {
+            background-color: #545b62;
+        }
+        
+        .btn-success {
+            background-color: #28a745;
+            color: white;
+        }
+        
+        .btn-success:hover {
+            background-color: #218838;
+        }
+        
+        .btn-danger {
+            background-color: #dc3545;
+            color: white;
+            padding: 8px 12px;
+            font-size: 12px;
+        }
+        
+        .btn-danger:hover {
+            background-color: #c82333;
+        }
+        
+        .results {
+            margin-top: 20px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 4px;
+            border-left: 4px solid #4285f4;
+        }
+        
+        .results h3 {
+            margin-top: 0;
+            color: #333;
+        }
+        
+        .log-entry {
+            background: #2d3748;
+            color: #e2e8f0;
+            padding: 15px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            margin: 10px 0;
+            white-space: pre-wrap;
+            overflow-x: auto;
+        }
+        
+        .status {
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            display: inline-block;
+            margin-bottom: 10px;
+        }
+        
+        .status-success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .status-error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .status-warning {
+            background: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeaa7;
+        }
+        
+        .status-info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        
+        .metrics {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+        
+        .metric-card {
+            background: white;
+            padding: 15px;
+            border-radius: 6px;
+            border: 1px solid #ddd;
+            text-align: center;
+        }
+        
+        .metric-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #4285f4;
+        }
+        
+        .metric-label {
+            font-size: 12px;
+            color: #666;
+            margin-top: 5px;
+        }
+        
+        #extensionStatus {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 10px 20px;
+            border-radius: 6px;
+            font-weight: 600;
+            z-index: 1000;
+        }
+    </style>
+</head>
+<body>
+    <div id="extensionStatus" class="status status-info">
+        🔍 Verificando extensión...
+    </div>
+
+    <div class="container">
+        <h1>🧪 Prueba Sistema Avanzado de Tokens</h1>
+        <p style="text-align: center; color: #666; margin-bottom: 40px;">
+            Esta página permite probar el sistema dinámico de gestión de tokens con fragmentación para evitar bans de la API
+        </p>
+
+        <!-- Test de Prompt Simple -->
+        <div class="test-section">
+            <h2><span class="test-icon">📝</span> Test 1: Prompt Simple (Sin Fragmentación)</h2>
+            <div class="form-group">
+                <label for="simplePrompt">Descripción del test:</label>
+                <textarea id="simplePrompt" placeholder="Describe qué tipo de test quieres generar...">Generar test básico para validar formulario de contacto con campos nombre, email y mensaje</textarea>
+            </div>
+            
+            <div id="simpleActions">
+                <h4>Acciones del Usuario:</h4>
+                <div class="action-row">
+                    <select>
+                        <option value="click">Click</option>
+                        <option value="type">Type</option>
+                        <option value="wait">Wait</option>
+                        <option value="navigate">Navigate</option>
+                    </select>
+                    <input type="text" placeholder="Selector CSS" value="input#name">
+                    <input type="text" placeholder="Valor (si aplica)" value="Juan Pérez">
+                    <button class="btn btn-danger" onclick="removeAction(this)">❌</button>
+                </div>
+                <div class="action-row">
+                    <select>
+                        <option value="type" selected>Type</option>
+                        <option value="click">Click</option>
+                        <option value="wait">Wait</option>
+                        <option value="navigate">Navigate</option>
+                    </select>
+                    <input type="text" placeholder="Selector CSS" value="input#email">
+                    <input type="text" placeholder="Valor (si aplica)" value="juan@example.com">
+                    <button class="btn btn-danger" onclick="removeAction(this)">❌</button>
+                </div>
+                <div class="action-row">
+                    <select>
+                        <option value="click" selected>Click</option>
+                        <option value="type">Type</option>
+                        <option value="wait">Wait</option>
+                        <option value="navigate">Navigate</option>
+                    </select>
+                    <input type="text" placeholder="Selector CSS" value="button#submit">
+                    <input type="text" placeholder="Valor (si aplica)">
+                    <button class="btn btn-danger" onclick="removeAction(this)">❌</button>
+                </div>
+            </div>
+            
+            <button class="btn btn-secondary" onclick="addAction('simpleActions')">➕ Agregar Acción</button>
+            <button class="btn btn-primary" onclick="testSimplePrompt()">🚀 Generar Test Simple</button>
+            
+            <div id="simpleResults" class="results" style="display: none;">
+                <h3>Resultados:</h3>
+                <div id="simpleMetrics" class="metrics"></div>
+                <div id="simpleOutput"></div>
+            </div>
+        </div>
+
+        <!-- Test de Prompt Complejo -->
+        <div class="test-section">
+            <h2><span class="test-icon">🔥</span> Test 2: Prompt Complejo (Con Fragmentación)</h2>
+            <div class="form-group">
+                <label for="complexPrompt">Descripción detallada del test:</label>
+                <textarea id="complexPrompt" placeholder="Describe un escenario complejo...">Generar test comprehensivo para aplicación web de e-commerce que incluya: registro de usuario, login, navegación por catálogo, búsqueda de productos, filtros, agregar al carrito, proceso de checkout, validación de formularios, manejo de errores, testing de responsive design, verificación de accesibilidad, testing de performance, validación de seguridad, testing cross-browser, y verificación de funcionalidades admin. Incluir tests unitarios, de integración y end-to-end. Considerar edge cases, validaciones de entrada, manejo de errores de red, timeout handling, y testing de concurrencia. Verificar funcionalidades de: gestión de inventario, procesamiento de pagos, notificaciones, reportes, analytics, SEO, internacionalización, y optimización de carga.</textarea>
+            </div>
+            
+            <div class="form-group">
+                <label>Número de acciones a generar:</label>
+                <input type="number" id="complexActionCount" value="25" min="20" max="50">
+                <button class="btn btn-secondary" onclick="generateComplexActions()">🎲 Generar Acciones Aleatorias</button>
+            </div>
+            
+            <div id="complexActions">
+                <h4>Acciones del Usuario (se generarán automáticamente):</h4>
+                <div id="complexActionsList"></div>
+            </div>
+            
+            <button class="btn btn-primary" onclick="testComplexPrompt()">🚀 Generar Test Complejo</button>
+            
+            <div id="complexResults" class="results" style="display: none;">
+                <h3>Resultados:</h3>
+                <div id="complexMetrics" class="metrics"></div>
+                <div id="complexOutput"></div>
+            </div>
+        </div>
+
+        <!-- Test de Stress -->
+        <div class="test-section">
+            <h2><span class="test-icon">💥</span> Test 3: Stress Test (Múltiples Requests)</h2>
+            <p>Este test simula múltiples requests consecutivas para validar el rate limiting y el sistema de reintentos.</p>
+            
+            <div class="form-group">
+                <label>Número de requests consecutivas:</label>
+                <input type="number" id="stressRequestCount" value="10" min="5" max="20">
+            </div>
+            
+            <button class="btn btn-success" onclick="testStress()">⚡ Iniciar Stress Test</button>
+            
+            <div id="stressResults" class="results" style="display: none;">
+                <h3>Resultados del Stress Test:</h3>
+                <div id="stressMetrics" class="metrics"></div>
+                <div id="stressLog"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let extensionAvailable = false;
+        let testMetrics = {};
+
+        // Verificar si la extensión está disponible
+        function checkExtension() {
+            if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.id) {
+                extensionAvailable = true;
+                document.getElementById('extensionStatus').innerHTML = '✅ Extensión Detectada';
+                document.getElementById('extensionStatus').className = 'status status-success';
+            } else {
+                document.getElementById('extensionStatus').innerHTML = '❌ Extensión No Detectada';
+                document.getElementById('extensionStatus').className = 'status status-error';
+            }
+        }
+
+        // Agregar nueva acción
+        function addAction(containerId) {
+            const container = document.getElementById(containerId);
+            const actionRow = document.createElement('div');
+            actionRow.className = 'action-row';
+            actionRow.innerHTML = `
+                <select>
+                    <option value="click">Click</option>
+                    <option value="type">Type</option>
+                    <option value="wait">Wait</option>
+                    <option value="navigate">Navigate</option>
+                </select>
+                <input type="text" placeholder="Selector CSS">
+                <input type="text" placeholder="Valor (si aplica)">
+                <button class="btn btn-danger" onclick="removeAction(this)">❌</button>
+            `;
+            container.appendChild(actionRow);
+        }
+
+        // Remover acción
+        function removeAction(button) {
+            button.parentElement.remove();
+        }
+
+        // Generar acciones complejas aleatorias
+        function generateComplexActions() {
+            const count = parseInt(document.getElementById('complexActionCount').value);
+            const container = document.getElementById('complexActionsList');
+            container.innerHTML = '';
+
+            const selectors = [
+                'input#username', 'input#password', 'input#email', 'input#firstName', 'input#lastName',
+                'button#login', 'button#register', 'button#submit', 'button#checkout', 'button#addToCart',
+                'select#category', 'select#sortBy', 'select#priceRange', 'input#search', 'input#quantity',
+                'a#product-1', 'a#product-2', 'a#category-electronics', 'a#category-clothing',
+                '.product-item', '.filter-option', '.checkout-step', '.payment-method', '.shipping-option'
+            ];
+
+            const values = [
+                'test@example.com', 'password123', 'Juan Pérez', 'María García', 'Carlos López',
+                'laptop gaming', 'auriculares bluetooth', '100', '2', '3',
+                'Electronics', 'Clothing', 'Books', 'Home', 'Sports'
+            ];
+
+            for (let i = 0; i < count; i++) {
+                const actionRow = document.createElement('div');
+                actionRow.className = 'action-row';
+                
+                const actionType = Math.random() < 0.7 ? (Math.random() < 0.5 ? 'click' : 'type') : 'wait';
+                const selector = selectors[Math.floor(Math.random() * selectors.length)];
+                const value = actionType === 'type' ? values[Math.floor(Math.random() * values.length)] : '';
+                
+                actionRow.innerHTML = `
+                    <select>
+                        <option value="click" ${actionType === 'click' ? 'selected' : ''}>Click</option>
+                        <option value="type" ${actionType === 'type' ? 'selected' : ''}>Type</option>
+                        <option value="wait" ${actionType === 'wait' ? 'selected' : ''}>Wait</option>
+                        <option value="navigate">Navigate</option>
+                    </select>
+                    <input type="text" placeholder="Selector CSS" value="${selector}">
+                    <input type="text" placeholder="Valor (si aplica)" value="${value}">
+                    <button class="btn btn-danger" onclick="removeAction(this)">❌</button>
+                `;
+                container.appendChild(actionRow);
+            }
+        }
+
+        // Recopilar acciones de un contenedor
+        function collectActions(containerId) {
+            const container = document.getElementById(containerId);
+            const actionRows = container.querySelectorAll('.action-row');
+            const actions = [];
+
+            actionRows.forEach(row => {
+                const select = row.querySelector('select');
+                const inputs = row.querySelectorAll('input');
+                
+                const action = {
+                    type: select.value,
+                    element: inputs[0].value,
+                    value: inputs[1].value
+                };
+                
+                if (action.element) {
+                    actions.push(action);
+                }
+            });
+
+            return actions;
+        }
+
+        // Enviar request a la extensión
+        async function sendToExtension(prompt, actions, testType) {
+            return new Promise((resolve, reject) => {
+                if (!extensionAvailable) {
+                    reject(new Error('Extensión no disponible'));
+                    return;
+                }
+
+                const startTime = Date.now();
+                
+                chrome.runtime.sendMessage({
+                    action: 'generateTest',
+                    prompt: prompt,
+                    actions: actions,
+                    testType: testType
+                }, (response) => {
+                    const endTime = Date.now();
+                    const duration = endTime - startTime;
+
+                    if (chrome.runtime.lastError) {
+                        reject(new Error(chrome.runtime.lastError.message));
+                        return;
+                    }
+
+                    response.duration = duration;
+                    response.timestamp = new Date().toISOString();
+                    
+                    if (response.success) {
+                        resolve(response);
+                    } else {
+                        reject(new Error(response.error || 'Error desconocido'));
+                    }
+                });
+            });
+        }
+
+        // Mostrar métricas
+        function displayMetrics(containerId, metrics) {
+            const container = document.getElementById(containerId);
+            container.innerHTML = `
+                <div class="metric-card">
+                    <div class="metric-value">${metrics.duration}ms</div>
+                    <div class="metric-label">Tiempo de Respuesta</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-value">${metrics.tokenEstimate || 'N/A'}</div>
+                    <div class="metric-label">Tokens Estimados</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-value">${metrics.fragmentCount || '1'}</div>
+                    <div class="metric-label">Fragmentos</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-value">${metrics.actionCount}</div>
+                    <div class="metric-label">Acciones</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-value">${metrics.rateLimited ? 'Sí' : 'No'}</div>
+                    <div class="metric-label">Rate Limited</div>
+                </div>
+            `;
+        }
+
+        // Test de prompt simple
+        async function testSimplePrompt() {
+            const prompt = document.getElementById('simplePrompt').value;
+            const actions = collectActions('simpleActions');
+            const resultsDiv = document.getElementById('simpleResults');
+            const outputDiv = document.getElementById('simpleOutput');
+
+            if (!prompt || actions.length === 0) {
+                alert('Por favor, completa el prompt y agrega al menos una acción');
+                return;
+            }
+
+            resultsDiv.style.display = 'block';
+            outputDiv.innerHTML = '<div class="status status-info">🔄 Generando test simple...</div>';
+
+            try {
+                const response = await sendToExtension(prompt, actions, 'simple');
+                
+                const metrics = {
+                    duration: response.duration,
+                    actionCount: actions.length,
+                    tokenEstimate: Math.ceil(prompt.length / 4) + actions.length * 50,
+                    fragmentCount: 1,
+                    rateLimited: response.rateLimited || false
+                };
+
+                displayMetrics('simpleMetrics', metrics);
+                
+                outputDiv.innerHTML = `
+                    <div class="status status-success">✅ Test generado exitosamente</div>
+                    <div class="log-entry">${response.test}</div>
+                `;
+
+            } catch (error) {
+                outputDiv.innerHTML = `
+                    <div class="status status-error">❌ Error: ${error.message}</div>
+                `;
+            }
+        }
+
+        // Test de prompt complejo
+        async function testComplexPrompt() {
+            const prompt = document.getElementById('complexPrompt').value;
+            const actions = collectActions('complexActionsList');
+            const resultsDiv = document.getElementById('complexResults');
+            const outputDiv = document.getElementById('complexOutput');
+
+            if (!prompt || actions.length === 0) {
+                alert('Por favor, completa el prompt y genera acciones');
+                return;
+            }
+
+            resultsDiv.style.display = 'block';
+            outputDiv.innerHTML = '<div class="status status-info">🔄 Generando test complejo con sistema de fragmentación...</div>';
+
+            try {
+                const response = await sendToExtension(prompt, actions, 'complex');
+                
+                const tokenEstimate = Math.ceil(prompt.length / 4) + actions.length * 50;
+                const fragmentCount = Math.ceil(actions.length / 5);
+                
+                const metrics = {
+                    duration: response.duration,
+                    actionCount: actions.length,
+                    tokenEstimate: tokenEstimate,
+                    fragmentCount: fragmentCount,
+                    rateLimited: response.rateLimited || false
+                };
+
+                displayMetrics('complexMetrics', metrics);
+                
+                outputDiv.innerHTML = `
+                    <div class="status status-success">✅ Test complejo generado exitosamente</div>
+                    <div class="status status-info">📊 Se usó fragmentación: ${fragmentCount > 1 ? 'Sí' : 'No'}</div>
+                    <div class="log-entry">${response.test}</div>
+                `;
+
+            } catch (error) {
+                outputDiv.innerHTML = `
+                    <div class="status status-error">❌ Error: ${error.message}</div>
+                `;
+            }
+        }
+
+        // Stress test
+        async function testStress() {
+            const requestCount = parseInt(document.getElementById('stressRequestCount').value);
+            const resultsDiv = document.getElementById('stressResults');
+            const logDiv = document.getElementById('stressLog');
+            const metricsDiv = document.getElementById('stressMetrics');
+
+            resultsDiv.style.display = 'block';
+            logDiv.innerHTML = '<div class="status status-info">🔄 Iniciando stress test...</div>';
+
+            const results = [];
+            const startTime = Date.now();
+
+            for (let i = 0; i < requestCount; i++) {
+                const iterationStart = Date.now();
+                
+                logDiv.innerHTML += `<div class="log-entry">Request ${i + 1}/${requestCount} - Iniciando...</div>`;
+                
+                try {
+                    const response = await sendToExtension(
+                        `Test request ${i + 1} - Generar test para validar funcionalidad básica`,
+                        [
+                            { type: 'click', element: `button#test-${i}`, value: '' },
+                            { type: 'type', element: `input#field-${i}`, value: `value-${i}` }
+                        ],
+                        'stress'
+                    );
+
+                    const duration = Date.now() - iterationStart;
+                    results.push({ success: true, duration });
+                    
+                    logDiv.innerHTML += `<div class="log-entry">✅ Request ${i + 1} exitoso (${duration}ms)</div>`;
+
+                } catch (error) {
+                    const duration = Date.now() - iterationStart;
+                    results.push({ success: false, duration, error: error.message });
+                    
+                    logDiv.innerHTML += `<div class="log-entry">❌ Request ${i + 1} falló: ${error.message} (${duration}ms)</div>`;
+                }
+
+                // Scroll al final
+                logDiv.scrollTop = logDiv.scrollHeight;
+            }
+
+            const totalDuration = Date.now() - startTime;
+            const successCount = results.filter(r => r.success).length;
+            const avgDuration = results.reduce((sum, r) => sum + r.duration, 0) / results.length;
+
+            metricsDiv.innerHTML = `
+                <div class="metric-card">
+                    <div class="metric-value">${successCount}/${requestCount}</div>
+                    <div class="metric-label">Exitosos</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-value">${totalDuration}ms</div>
+                    <div class="metric-label">Tiempo Total</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-value">${Math.round(avgDuration)}ms</div>
+                    <div class="metric-label">Promedio por Request</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-value">${Math.round((successCount / totalDuration) * 60000)}</div>
+                    <div class="metric-label">Requests/Min</div>
+                </div>
+            `;
+
+            logDiv.innerHTML += `<div class="status status-success">✅ Stress test completado: ${successCount}/${requestCount} exitosos</div>`;
+        }
+
+        // Inicializar página
+        document.addEventListener('DOMContentLoaded', () => {
+            checkExtension();
+            generateComplexActions(); // Generar acciones por defecto
+        });
+    </script>
+</body>
+</html>

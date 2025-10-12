@@ -1,0 +1,28 @@
+{
+  "jobId": "b67ac5ca-1e4a-4b42-ba7f-c177e856924d",
+  "status": "failed",
+  "timestamp": "2025-10-10T17:49:30.338Z",
+  "url": "https://test.com",
+  "stepCount": 1,
+  "mcpSteps": 2,
+  "assertionCount": 1,
+  "results": {
+    "success": false,
+    "exitCode": 1,
+    "artifacts": [],
+    "runDir": "C:\\WARE-LOA\\ITprojects\\Tests-Analytics\\.local\\runs\\b67ac5ca-1e4a-4b42-ba7f-c177e856924d"
+  },
+  "links": {
+    "gherkin": "/artifacts/b67ac5ca-1e4a-4b42-ba7f-c177e856924d/manual/b67ac5ca-1e4a-4b42-ba7f-c177e856924d.feature",
+    "testCase": "/artifacts/b67ac5ca-1e4a-4b42-ba7f-c177e856924d/manual/test-case.md",
+    "stepGuide": "/artifacts/b67ac5ca-1e4a-4b42-ba7f-c177e856924d/manual/step-guide.md",
+    "jiraCase": "/artifacts/b67ac5ca-1e4a-4b42-ba7f-c177e856924d/manual/jira-test-case.txt",
+    "playwrightSpec": "/runs/b67ac5ca-1e4a-4b42-ba7f-c177e856924d/test.spec.ts",
+    "playwrightConfig": "/runs/b67ac5ca-1e4a-4b42-ba7f-c177e856924d/playwright.config.js",
+    "mcp": "/runs/b67ac5ca-1e4a-4b42-ba7f-c177e856924d/mcp.json",
+    "executionReport": "/runs/b67ac5ca-1e4a-4b42-ba7f-c177e856924d/execution-report.json",
+    "htmlReport": null,
+    "traces": [],
+    "screenshots": []
+  }
+}

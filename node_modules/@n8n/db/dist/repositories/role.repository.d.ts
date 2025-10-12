@@ -1,0 +1,15 @@
+import { DatabaseConfig } from '@n8n/config';
+import { DataSource, Repository } from '@n8n/typeorm';
+import { Role } from '../entities';
+export declare class RoleRepository extends Repository<Role> {
+    private readonly databaseConfig;
+    constructor(dataSource: DataSource, databaseConfig: DatabaseConfig);
+    findAll(): Promise<Role[]>;
+    countUsersWithRole(role: Role): Promise<number>;
+    findAllRoleCounts(): Promise<Record<string, number>>;
+    findBySlug(slug: string): Promise<Role | null>;
+    findBySlugs(slugs: string[], roleType: 'global' | 'project' | 'workflow' | 'credential'): Promise<Role[]>;
+    removeBySlug(slug: string): Promise<void>;
+    private updateEntityWithManager;
+    updateRole(slug: string, newData: Partial<Pick<Role, 'description' | 'scopes' | 'displayName'>>): Promise<Role>;
+}

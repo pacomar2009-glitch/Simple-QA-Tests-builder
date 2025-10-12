@@ -257,6 +257,60 @@
       0% { transform: rotate(0deg); }
       100% { transform: rotate(360deg); }
     }
+
+    /* Configuration Section Styles */
+    .config-option {
+      margin-bottom: 12px;
+    }
+
+    .checkbox-container {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      cursor: pointer;
+      font-size: 13px;
+    }
+
+    .checkbox-container input[type="checkbox"] {
+      margin: 0;
+      transform: scale(1.2);
+    }
+
+    .label-text strong {
+      color: #333;
+    }
+
+    .label-text small {
+      color: #666;
+      font-size: 11px;
+    }
+
+    .integration-status {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      background: #f8f9fa;
+      border-radius: 4px;
+      font-size: 12px;
+      border: 1px solid #e9ecef;
+    }
+
+    .status-indicator {
+      font-size: 10px;
+    }
+
+    .status-indicator.connected {
+      color: #28a745;
+    }
+
+    .status-indicator.disconnected {
+      color: #dc3545;
+    }
+
+    .status-indicator.checking {
+      color: #ffc107;
+    }
   </style>
 </head>
 <body>
@@ -302,6 +356,26 @@
       </div>
     </div>
 
+    <!-- Configuration Section -->
+    <div class="section">
+      <h3>⚙️ Integration Settings</h3>
+      <div class="config-option">
+        <label class="checkbox-container">
+          <input type="checkbox" id="enableN8nIntegration" checked>
+          <span class="checkmark"></span>
+          <span class="label-text">
+            <strong>Auto-send to n8n Workflow</strong>
+            <br>
+            <small>Automatically process actions through n8n workflow for AI test generation</small>
+          </span>
+        </label>
+      </div>
+      <div id="n8nStatus" class="integration-status">
+        <span class="status-indicator" id="n8nIndicator">⚪</span>
+        <span id="n8nStatusText">Checking n8n connection...</span>
+      </div>
+    </div>
+
     <!-- Export Section -->
     <div class="section">
       <h3>🚀 Export & Generate</h3>
@@ -320,6 +394,11 @@
         <button id="viewTests" class="btn btn-secondary">
           👁️ View Tests
         </button>
+      </div>
+      <!-- Resultado generado por IA -->
+      <div id="aiResultSection" style="margin-top:16px; display:none;">
+        <h4 style="margin-bottom:8px; color:#667eea;">🤖 Test generado por IA</h4>
+        <textarea id="aiResult" style="width:100%; min-height:120px; font-family:monospace; font-size:13px; border-radius:6px; border:1px solid #e9ecef; padding:8px; resize:vertical;" readonly></textarea>
       </div>
     </div>
 

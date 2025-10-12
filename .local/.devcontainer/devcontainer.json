@@ -1,0 +1,49 @@
+{
+  "name": "Tests Analytics - MCP Test Generator",
+  "dockerFile": "Dockerfile",
+  "context": "..",
+  "workspaceFolder": "/workspace",
+  "workspaceMount": "source=${localWorkspaceFolder},target=/workspace,type=bind",
+  
+  // Features and tools
+  "features": {
+    "ghcr.io/devcontainers/features/node:1": {
+      "version": "20"
+    },
+    "ghcr.io/devcontainers/features/git:1": {}
+  },
+  
+  // VS Code settings
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-vscode.vscode-typescript-next",
+        "esbenp.prettier-vscode",
+        "dbaeumer.vscode-eslint",
+        "ms-playwright.playwright",
+        "cucumber-gherkin.cucumber-official"
+      ],
+      "settings": {
+        "typescript.preferences.quoteStyle": "single",
+        "editor.formatOnSave": true,
+        "editor.defaultFormatter": "esbenp.prettier-vscode"
+      }
+    }
+  },
+  
+  // Expose ports
+  "forwardPorts": [3000, 3001],
+  "portsAttributes": {
+    "3000": {
+      "label": "MCP Test Generator API",
+      "onAutoForward": "notify"
+    }
+  },
+  
+  // Post-create commands
+  "postCreateCommand": "npm ci && npx playwright install --with-deps chromium",
+  
+  // Development settings
+  "remoteUser": "node",
+  "updateRemoteUserUID": true
+}

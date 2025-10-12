@@ -1,0 +1,20 @@
+{
+  "name": "n8n-devcontainer",
+  "image": "node:22-bullseye",
+  "features": {
+    "ghcr.io/devcontainers/features/docker-in-docker:2": {}
+  },
+  "forwardPorts": [5678],
+  "workspaceFolder": "/workspace",
+  "mounts": [
+    "source=${localWorkspaceFolder}/n8n-data,target=/workspace/n8n-data,type=bind"
+  ],
+  "postCreateCommand": "npm install -g n8n@latest && chmod +x /workspace/.devcontainer/postStart.sh && chmod +x /workspace/.devcontainer/init-n8n.sh",
+  "postStartCommand": "/workspace/.devcontainer/postStart.sh",
+  "customizations": {
+    "vscode": {
+      "settings": {},
+      "extensions": ["ms-vscode-remote.remote-containers"]
+    }
+  }
+}

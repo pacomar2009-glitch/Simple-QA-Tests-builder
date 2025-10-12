@@ -1,0 +1,73 @@
+{
+  "manifest_version": 3,
+  "name": "TestBuilder - AI Test Automation",
+  "version": "25.10.06.1544",
+  "description": "AI-powered test automation with Playwright, MCP integration, and advanced user action tracking",
+  "permissions": [
+    "storage",
+    "activeTab",
+    "scripting",
+    "downloads",
+    "tabs",
+    "contextMenus",
+    "webNavigation",
+    "webRequest",
+    "debugger"
+  ],
+  "host_permissions": [
+    "<all_urls>",
+    "http://localhost:3000/*",
+    "https://localhost:3000/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["src/content-enhanced.js"],
+      "run_at": "document_idle",
+      "all_frames": false,
+      "match_about_blank": true,
+      "match_origin_as_fallback": false
+    }
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "TestBuilder - AI Test Automation"
+  },
+  "commands": {
+    "toggle-recording": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+R",
+        "mac": "Command+Shift+R"
+      },
+      "description": "Toggle test recording"
+    },
+    "generate-test": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+G",
+        "mac": "Command+Shift+G"
+      },
+      "description": "Generate AI test"
+    }
+  },
+  "options_ui": {
+    "page": "config/config.html",
+    "open_in_tab": true
+  },
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "src/content-enhanced.js",
+        "config/config.html",
+        "config/config.js",
+        "popup.html",
+        "popup.js",
+        "*.png",
+        "*.svg"
+      ],
+      "matches": ["<all_urls>"]
+    }
+  ]
+}

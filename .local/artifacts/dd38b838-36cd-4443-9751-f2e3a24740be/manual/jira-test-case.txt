@@ -1,0 +1,24 @@
+h1. Test test.com - clicking
+
+h2. Test Information
+* *Test Type:* Functional
+* *URL:* https://test.com
+* *Created:* 2025-10-10T12:56:25.626Z
+
+h2. Objective
+test
+
+h2. Prerequisites
+* Browser is available
+* Target application is accessible
+
+h2. Test Steps
+|| Step || Action || Expected Result ||
+| 1 | Navigate to https://test.com | Action completes |
+| 2 | Click on button | Button should be visible and clickable |
+
+h2. Expected Result
+All steps execute successfully.
+
+h2. Actual Result
+_To be updated during execution_

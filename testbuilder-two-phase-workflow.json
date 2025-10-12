@@ -1,0 +1,372 @@
+{
+  "name": "TestBuilder Two-Phase Workflow",
+  "active": true,
+  "nodes": [
+    {
+      "parameters": {
+        "path": "/webhook/action-capture",
+        "options": {}
+      },
+      "name": "Real-time Action Capture",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 200],
+      "id": "action-capture-webhook"
+    },
+    {
+      "parameters": {
+        "functionCode": "// FASE 1: Captura en tiempo real de acciones individuales\nconst action = $json.action || {};\nconst sessionData = $json.sessionData || {};\nconst sessionId = sessionData.sessionId || $json.sessionId || `session_${Date.now()}`;\n\n// Validar que tenemos una acción válida\nif (!action.type || !action.timestamp) {\n  return [{\n    json: {\n      success: false,\n      error: 'Invalid action data',\n      received: $json\n    }\n  }];\n}\n\n// Preparar datos para almacenamiento\nconst actionData = {\n  sessionId: sessionId,\n  action: {\n    ...action,\n    capturedAt: new Date().toISOString(),\n    url: sessionData.url || '',\n    title: sessionData.title || ''\n  },\n  metadata: {\n    userAgent: $json.userAgent || '',\n    timestamp: Date.now()\n  }\n};\n\nconsole.log('📝 Action captured for session:', sessionId, 'Action:', action.type);\n\nreturn [{json: actionData}];"
+      },
+      "name": "Process Individual Action",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [460, 200],
+      "id": "process-action"
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "dataMode": "define",
+        "key": "={{$json.sessionId}}",
+        "stringValue": "={{JSON.stringify($json)}}\n"
+      },
+      "name": "Store Action in Data Store",
+      "type": "n8n-nodes-base.dataEditor",
+      "typeVersion": 1,
+      "position": [680, 200],
+      "id": "store-action"
+    },
+    {
+      "parameters": {
+        "functionCode": "// Respuesta para la fase de captura\nconst response = {\n  success: true,\n  message: 'Action stored successfully',\n  sessionId: $json.sessionId,\n  actionType: $json.action?.type,\n  timestamp: new Date().toISOString()\n};\n\nreturn [{json: response}];"
+      },
+      "name": "Capture Response",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [900, 200],
+      "id": "capture-response"
+    },
+    {
+      "parameters": {
+        "path": "/webhook/generate-tests",
+        "options": {}
+      },
+      "name": "Test Generation Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 500],
+      "id": "generate-webhook"
+    },
+    {
+      "parameters": {
+        "functionCode": "// FASE 2: Preparar generación de tests\nconst sessionId = $json.sessionId;\n\nif (!sessionId) {\n  throw new Error('Session ID is required for test generation');\n}\n\nconsole.log('🚀 Starting test generation for session:', sessionId);\n\n// Pasar el sessionId para recuperar las acciones almacenadas\nreturn [{\n  json: {\n    sessionId: sessionId,\n    requestData: $json,\n    startTime: new Date().toISOString()\n  }\n}];"
+      },
+      "name": "Prepare Test Generation",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [460, 500],
+      "id": "prepare-generation"
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "key": "={{$json.sessionId}}"
+      },
+      "name": "Retrieve Session Actions",
+      "type": "n8n-nodes-base.dataEditor",
+      "typeVersion": 1,
+      "position": [680, 500],
+      "id": "retrieve-actions"
+    },
+    {
+      "parameters": {
+        "functionCode": "// Procesar acciones almacenadas y preparar para IA\nconst sessionId = $('Prepare Test Generation').item.json.sessionId;\nconst rawData = $json.value || '';\n\nif (!rawData || rawData.trim() === '') {\n  return [{\n    json: {\n      success: false,\n      error: 'No actions found for session',\n      sessionId: sessionId\n    }\n  }];\n}\n\n// Parsear las acciones almacenadas (cada línea es un JSON)\nconst actions = [];\nconst lines = rawData.trim().split('\\n');\n\nfor (const line of lines) {\n  if (line.trim()) {\n    try {\n      const actionData = JSON.parse(line);\n      if (actionData.action) {\n        actions.push(actionData.action);\n      }\n    } catch (e) {\n      console.log('Skipping invalid action line:', line);\n    }\n  }\n}\n\n// Validar que tenemos suficientes acciones\nif (actions.length < 2) {\n  return [{\n    json: {\n      success: false,\n      error: 'Insufficient actions for test generation',\n      actionsFound: actions.length,\n      minimumRequired: 2\n    }\n  }];\n}\n\n// Ordenar acciones por timestamp\nactions.sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));\n\n// Enriquecer con metadata\nconst enrichedData = {\n  sessionId: sessionId,\n  totalActions: actions.length,\n  processedAt: new Date().toISOString(),\n  sourceUrl: actions[0]?.url || '',\n  pageTitle: actions[0]?.title || '',\n  actions: actions.map((action, index) => ({\n    ...action,\n    actionIndex: index + 1,\n    relativeTime: action.timestamp ? action.timestamp - actions[0].timestamp : 0\n  }))\n};\n\nconsole.log('✅ Processed', actions.length, 'actions for generation');\n\nreturn [{json: enrichedData}];"
+      },
+      "name": "Process Session Actions",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [900, 500],
+      "id": "process-session"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{$json.totalActions}}",
+              "operation": "largerEqual",
+              "value2": 2
+            }
+          ]
+        }
+      },
+      "name": "Validate Session Data",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1120, 500],
+      "id": "validate-session"
+    },
+    {
+      "parameters": {
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googlePalmApi",
+        "sendBody": true,
+        "contentType": "json",
+        "body": "={{JSON.stringify({\n  contents: [{\n    parts: [{\n      text: `Analiza estas acciones de usuario capturadas en tiempo real con Chrome DevTools MCP y genera un test Playwright robusto:\n\nSESIÓN: ${$json.sessionId}\nURL: ${$json.sourceUrl}\nTÍTULO: ${$json.pageTitle}\nACCIONES CAPTURADAS: ${$json.totalActions}\nTIEMPO DE PROCESAMIENTO: ${$json.processedAt}\n\nACCIONES DETALLADAS:\n${$json.actions.map(a => `${a.actionIndex}. ${a.type} en '${a.selector}' ${a.value ? 'valor: ' + a.value : ''} (${a.relativeTime}ms desde inicio)`).join('\\n')}\n\nGenera un test Playwright completo en TypeScript con:\n1. Imports y setup apropiados\n2. Selectores robustos y resilientes  \n3. Esperas apropiadas entre acciones\n4. Assertions relevantes para validar estado\n5. Manejo de errores y timeouts\n6. Comentarios explicativos\n7. Navegación inicial a la URL base\n\nFormato: Código TypeScript puro sin markdown, listo para ejecutar.\n\nUSA MCP DE PLAYWRIGHT para generar selectores robustos que funcionen en diferentes estados del DOM.`\n    }]\n  }],\n  generationConfig: {\n    maxOutputTokens: 4000,\n    temperature: 0.2\n  }\n})}}",
+        "options": {}
+      },
+      "name": "Generate Playwright Test",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [1340, 400],
+      "id": "generate-playwright"
+    },
+    {
+      "parameters": {
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googlePalmApi",
+        "sendBody": true,
+        "contentType": "json",
+        "body": "={{JSON.stringify({\n  contents: [{\n    parts: [{\n      text: `Convierte estas acciones de usuario capturadas en tiempo real en un test manual formato CSV para Jira:\n\nSESIÓN: ${$json.sessionId}\nURL: ${$json.sourceUrl}\nTÍTULO: ${$json.pageTitle}\nACCIONES PROCESADAS: ${$json.totalActions}\n\nSECUENCIA DE ACCIONES:\n${$json.actions.map(a => `${a.actionIndex}. ${a.type} en '${a.selector}' ${a.value ? 'valor: ' + a.value : ''} (tiempo relativo: ${a.relativeTime}ms)`).join('\\n')}\n\nGenera CSV con columnas exactas:\nStep,Action,Description,Element,Expected_Result,Notes\n\nCada fila debe describir:\n- Step: Número secuencial\n- Action: Acción específica (Navigate, Click, Type, Verify, etc.)\n- Description: Descripción clara del paso\n- Element: Selector CSS o descripción del elemento\n- Expected_Result: Resultado esperado después del paso\n- Notes: Observaciones o precondiciones\n\nIncluye paso inicial de navegación a ${$json.sourceUrl}\nFormato: CSV válido sin código markdown, listo para importar en Jira.`\n    }]\n  }],\n  generationConfig: {\n    maxOutputTokens: 2000,\n    temperature: 0.1\n  }\n})}}",
+        "options": {}
+      },
+      "name": "Generate Manual Test CSV",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [1340, 600],
+      "id": "generate-csv"
+    },
+    {
+      "parameters": {
+        "functionCode": "// Procesar respuesta de Gemini para Playwright\nconst response = $json.candidates?.[0]?.content?.parts?.[0]?.text || '';\nconst sessionData = $('Process Session Actions').item.json;\n\n// Limpiar y formatear código\nconst cleanCode = response\n  .replace(/```typescript/gi, '')\n  .replace(/```javascript/gi, '')\n  .replace(/```/g, '')\n  .trim();\n\n// Validar que contiene código Playwright\nconst isValidPlaywright = cleanCode.includes('page.') && \n                         (cleanCode.includes('test(') || cleanCode.includes('test.describe'));\n\nif (!isValidPlaywright) {\n  throw new Error('Generated code is not valid Playwright test');\n}\n\nreturn [{\n  json: {\n    testType: 'playwright',\n    generatedCode: cleanCode,\n    filename: `playwright-test-${sessionData.sessionId}-${Date.now()}.spec.ts`,\n    sessionId: sessionData.sessionId,\n    generatedAt: new Date().toISOString(),\n    codeLength: cleanCode.length,\n    linesCount: cleanCode.split('\\n').length,\n    sourceActions: sessionData.totalActions\n  }\n}];"
+      },
+      "name": "Process Playwright Response",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [1560, 400],
+      "id": "process-playwright"
+    },
+    {
+      "parameters": {
+        "functionCode": "// Procesar respuesta de Gemini para CSV\nconst response = $json.candidates?.[0]?.content?.parts?.[0]?.text || '';\nconst sessionData = $('Process Session Actions').item.json;\n\n// Limpiar CSV\nconst cleanCsv = response\n  .replace(/```csv/gi, '')\n  .replace(/```/g, '')\n  .trim();\n\n// Validar formato CSV\nconst lines = cleanCsv.split('\\n').filter(line => line.trim());\nconst hasHeader = lines[0] && lines[0].includes('Step') && lines[0].includes('Action');\n\nif (!hasHeader || lines.length < 2) {\n  throw new Error('Generated CSV is not valid');\n}\n\nreturn [{\n  json: {\n    testType: 'manual',\n    generatedCsv: cleanCsv,\n    filename: `manual-test-${sessionData.sessionId}-${Date.now()}.csv`,\n    sessionId: sessionData.sessionId,\n    generatedAt: new Date().toISOString(),\n    stepsCount: lines.length - 1,\n    csvSize: cleanCsv.length,\n    sourceActions: sessionData.totalActions\n  }\n}];"
+      },
+      "name": "Process CSV Response",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [1560, 600],
+      "id": "process-csv"
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "options": {}
+      },
+      "name": "Combine Test Results",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 2,
+      "position": [1780, 500],
+      "id": "combine-results"
+    },
+    {
+      "parameters": {
+        "functionCode": "// Crear respuesta final integrada\nconst playwrightData = $input.first()?.json || {};\nconst csvData = $input.last()?.json || {};\nconst sessionData = $('Process Session Actions').item.json;\n\n// Estadísticas de análisis\nconst analysis = {\n  actionTypes: {},\n  selectorTypes: {},\n  avgTimeBetweenActions: 0,\n  sessionDuration: 0\n};\n\n// Analizar tipos de acciones\nsessionData.actions.forEach(action => {\n  analysis.actionTypes[action.type] = (analysis.actionTypes[action.type] || 0) + 1;\n  \n  // Analizar tipos de selectores\n  if (action.selector) {\n    if (action.selector.startsWith('#')) {\n      analysis.selectorTypes.id = (analysis.selectorTypes.id || 0) + 1;\n    } else if (action.selector.startsWith('.')) {\n      analysis.selectorTypes.class = (analysis.selectorTypes.class || 0) + 1;\n    } else if (action.selector.includes(':nth-child')) {\n      analysis.selectorTypes.nthChild = (analysis.selectorTypes.nthChild || 0) + 1;\n    } else {\n      analysis.selectorTypes.other = (analysis.selectorTypes.other || 0) + 1;\n    }\n  }\n});\n\n// Calcular tiempo promedio entre acciones\nif (sessionData.actions.length > 1) {\n  const lastAction = sessionData.actions[sessionData.actions.length - 1];\n  const firstAction = sessionData.actions[0];\n  analysis.sessionDuration = lastAction.relativeTime || 0;\n  analysis.avgTimeBetweenActions = Math.round(analysis.sessionDuration / (sessionData.actions.length - 1));\n}\n\nconst finalResult = {\n  success: true,\n  sessionId: sessionData.sessionId,\n  message: 'Tests generated successfully from captured session',\n  processedAt: new Date().toISOString(),\n  source: {\n    url: sessionData.sourceUrl,\n    title: sessionData.pageTitle,\n    totalActions: sessionData.totalActions\n  },\n  analysis,\n  tests: {\n    playwright: {\n      code: playwrightData.generatedCode || '',\n      filename: playwrightData.filename || '',\n      linesCount: playwrightData.linesCount || 0\n    },\n    manual: {\n      csv: csvData.generatedCsv || '',\n      filename: csvData.filename || '',\n      stepsCount: csvData.stepsCount || 0\n    }\n  },\n  metrics: {\n    totalActions: sessionData.totalActions,\n    playwrightCodeLength: playwrightData.codeLength || 0,\n    csvSize: csvData.csvSize || 0,\n    sessionDuration: analysis.sessionDuration,\n    processingTime: Date.now() - new Date(sessionData.processedAt).getTime()\n  }\n};\n\nreturn [{json: finalResult}];"
+      },
+      "name": "Create Final Report",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [2000, 500],
+      "id": "final-report"
+    },
+    {
+      "parameters": {
+        "functionCode": "// Error handler para datos insuficientes\nconst sessionData = $('Process Session Actions').item.json;\n\nconst errorResponse = {\n  success: false,\n  error: 'Insufficient session data for test generation',\n  message: sessionData.error || 'At least 2 actions are required to generate meaningful tests',\n  sessionId: sessionData.sessionId,\n  actionsFound: sessionData.totalActions || 0,\n  minimumRequired: 2,\n  suggestions: [\n    'Perform more interactions during recording session',\n    'Ensure actions are being captured properly',\n    'Try recording a complete user workflow'\n  ]\n};\n\nreturn [{json: errorResponse}];"
+      },
+      "name": "Insufficient Data Error",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [1120, 700],
+      "id": "error-insufficient"
+    }
+  ],
+  "connections": {
+    "Real-time Action Capture": {
+      "main": [
+        [
+          {
+            "node": "Process Individual Action",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process Individual Action": {
+      "main": [
+        [
+          {
+            "node": "Store Action in Data Store",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Store Action in Data Store": {
+      "main": [
+        [
+          {
+            "node": "Capture Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Test Generation Trigger": {
+      "main": [
+        [
+          {
+            "node": "Prepare Test Generation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Test Generation": {
+      "main": [
+        [
+          {
+            "node": "Retrieve Session Actions",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Retrieve Session Actions": {
+      "main": [
+        [
+          {
+            "node": "Process Session Actions",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process Session Actions": {
+      "main": [
+        [
+          {
+            "node": "Validate Session Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Session Data": {
+      "main": [
+        [
+          {
+            "node": "Generate Playwright Test",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Generate Manual Test CSV",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Insufficient Data Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Playwright Test": {
+      "main": [
+        [
+          {
+            "node": "Process Playwright Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Manual Test CSV": {
+      "main": [
+        [
+          {
+            "node": "Process CSV Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process Playwright Response": {
+      "main": [
+        [
+          {
+            "node": "Combine Test Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process CSV Response": {
+      "main": [
+        [
+          {
+            "node": "Combine Test Results",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Combine Test Results": {
+      "main": [
+        [
+          {
+            "node": "Create Final Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [
+    {
+      "createdAt": "2025-10-12T00:00:00.000Z",
+      "updatedAt": "2025-10-12T00:00:00.000Z",
+      "id": "1",
+      "name": "TestBuilder"
+    },
+    {
+      "createdAt": "2025-10-12T00:00:00.000Z", 
+      "updatedAt": "2025-10-12T00:00:00.000Z",
+      "id": "2",
+      "name": "TwoPhase"
+    }
+  ],
+  "triggerCount": 2,
+  "updatedAt": "2025-10-12T00:00:00.000Z",
+  "versionId": "2"
+}

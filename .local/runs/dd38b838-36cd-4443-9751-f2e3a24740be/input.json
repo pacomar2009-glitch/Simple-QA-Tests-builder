@@ -1,0 +1,16 @@
+{
+  "jobId": "dd38b838-36cd-4443-9751-f2e3a24740be",
+  "timestamp": "2025-10-10T12:56:25.609Z",
+  "sessionId": "123",
+  "url": "https://test.com",
+  "steps": [
+    {
+      "selector": "button",
+      "type": "click"
+    }
+  ],
+  "instructions": "test",
+  "metadata": {
+    "userAgent": "Mozilla/5.0 (Windows NT; Windows NT 10.0; es-ES) WindowsPowerShell/5.1.26100.6584"
+  }
+}

@@ -2,7 +2,7 @@
 let aiModelConfig = {
   'flow-auto': {
     name: 'Flow-auto',
-    endpoint: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent',
+    endpoint: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent',
     apiKey: 'AIzaSyCzJ4xs0SjfvlYMvSBkjauJ9s5n_0r6F24',
     status: 'configured',
     testMethod: 'testGemini'
@@ -13,25 +13,54 @@ let availableModels = [
   {
     id: 'flow-auto',
     name: 'Flow-auto',
-  endpoint: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent',
-    description: 'Sistema de IA integrado basado en Google Gemini 1.5 Flash para generación automática de tests',
-    features: ['Preconfigurado', 'Gemini 1.5 Flash', 'Listo para usar'],
-  requiresKey: false,
-  status: 'configured',
-  testMethod: 'testGemini',
-  apiKey: 'AIzaSyCzJ4xs0SjfvlYMvSBkjauJ9s5n_0r6F24' // API key restaurada
+    endpoint: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent',
+    description: 'Sistema de IA integrado basado en Google Gemini 2.5 Flash para generación automática de tests',
+    features: ['Preconfigurado', 'Gemini 2.5 Flash', 'Listo para usar'],
+    requiresKey: true,
+    status: 'configured',
+    testMethod: 'testGemini',
+    apiKey: 'AIzaSyCzJ4xs0SjfvlYMvSBkjauJ9s5n_0r6F24' // API key restaurada
   }
 ];
 
 // Inicializar aplicación
 document.addEventListener('DOMContentLoaded', async () => {
   console.log('Config page loading...');
+  await initializeDefaultConfiguration(); // Nueva función
   initializeTabs();
   loadInstructions();
   loadModels();
   updateInstructionsPreview();
   setupEventListeners();
 });
+
+// Función para inicializar configuración por defecto
+async function initializeDefaultConfiguration() {
+  return new Promise((resolve) => {
+    chrome.storage.local.get(['aiModels'], (result) => {
+      const savedModels = result.aiModels || {};
+      
+      // Asegurar que flow-auto existe con configuración completa
+      if (!savedModels['flow-auto'] || !savedModels['flow-auto'].apiKey) {
+        savedModels['flow-auto'] = {
+          name: 'Flow-auto',
+          endpoint: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent',
+          apiKey: 'AIzaSyCzJ4xs0SjfvlYMvSBkjauJ9s5n_0r6F24',
+          status: 'configured',
+          testMethod: 'testGemini'
+        };
+        
+        chrome.storage.local.set({ aiModels: savedModels }, () => {
+          console.log('✅ Default Gemini configuration initialized');
+          resolve();
+        });
+      } else {
+        console.log('ℹ️ Gemini configuration already exists');
+        resolve();
+      }
+    });
+  });
+}
 
 // Configurar event listeners
 function setupEventListeners() {
@@ -601,12 +630,33 @@ function addCustomModel() {
 
 // Cargar instrucciones
 function loadInstructions() {
-  // Valores por defecto
-  document.getElementById('language').value = 'español';
-  document.getElementById('tone').value = 'profesional';
-  document.getElementById('detailLevel').value = 'detallado';
-  document.getElementById('namingConvention').value = 'descriptive';
-  document.getElementById('testFramework').value = 'playwright';
+  chrome.storage.local.get(['userInstructions'], (result) => {
+    const instructions = result.userInstructions;
+    if (instructions) {
+      document.getElementById('language').value = instructions.style?.language || 'español';
+      document.getElementById('tone').value = instructions.style?.tone || 'profesional';
+      document.getElementById('detailLevel').value = instructions.style?.detail_level || 'detallado';
+      document.getElementById('namingConvention').value = instructions.standards?.naming_convention || 'descriptive';
+      document.getElementById('stepNumbering').checked = instructions.standards?.step_numbering || false;
+      document.getElementById('preconditions').checked = instructions.standards?.preconditions_required || false;
+      document.getElementById('postconditions').checked = instructions.standards?.postconditions_required || false;
+      document.getElementById('expectedResults').checked = instructions.standards?.expected_results || false;
+      document.getElementById('includeScreenshots').checked = instructions.content?.include_screenshots || false;
+      document.getElementById('includeTestData').checked = instructions.content?.include_test_data || false;
+      document.getElementById('includeValidations').checked = instructions.content?.include_validations || false;
+      document.getElementById('includeErrorCases').checked = instructions.content?.include_error_cases || false;
+      document.getElementById('includeBrowserInfo').checked = instructions.content?.include_browser_info || false;
+      document.getElementById('customInstructions').value = instructions.custom_instructions || '';
+      document.getElementById('testFramework').value = instructions.framework || 'playwright';
+    } else {
+      // Valores por defecto si no hay instrucciones guardadas
+      document.getElementById('language').value = 'español';
+      document.getElementById('tone').value = 'profesional';
+      document.getElementById('detailLevel').value = 'detallado';
+      document.getElementById('namingConvention').value = 'descriptive';
+      document.getElementById('testFramework').value = 'playwright';
+    }
+  });
 }
 
 // Guardar instrucciones

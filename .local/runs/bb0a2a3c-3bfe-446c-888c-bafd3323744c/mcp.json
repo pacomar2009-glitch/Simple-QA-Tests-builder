@@ -1,0 +1,54 @@
+{
+  "testTitle": "Test example.com - clicking and filling forms",
+  "url": "https://example.com",
+  "instructions": "Generate test for integration verification",
+  "steps": [
+    {
+      "action": "goto",
+      "selector": null,
+      "value": "https://example.com",
+      "options": {
+        "waitUntil": "networkidle"
+      }
+    },
+    {
+      "action": "click",
+      "selector": "#test-button",
+      "value": null,
+      "options": {
+        "timeout": 5000,
+        "description": "Click on element with id \"test-button\""
+      }
+    },
+    {
+      "action": "fill",
+      "selector": "#test-input",
+      "value": "test value",
+      "options": {
+        "timeout": 5000,
+        "clear": true,
+        "description": "Fill element with id \"test-input\" with \"test value\""
+      }
+    }
+  ],
+  "assertions": [
+    {
+      "type": "visible",
+      "selector": "#test-button",
+      "expected": true,
+      "description": "Button should be visible and clickable"
+    },
+    {
+      "type": "value",
+      "selector": "#test-input",
+      "expected": "test value",
+      "description": "Input field should contain the entered value"
+    }
+  ],
+  "metadata": {
+    "originalStepCount": 2,
+    "mcpStepCount": 3,
+    "assertionCount": 2,
+    "generatedAt": "2025-10-11T07:24:02.099Z"
+  }
+}

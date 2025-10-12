@@ -1,0 +1,21 @@
+{
+  "jobId": "dcb670c0-298a-4493-b718-e853ee4188f2",
+  "timestamp": "2025-10-11T07:10:58.447Z",
+  "url": "https://example.com",
+  "steps": [
+    {
+      "type": "click",
+      "selector": "#test-button",
+      "text": "Test Button"
+    },
+    {
+      "type": "input",
+      "selector": "#test-input",
+      "value": "test value"
+    }
+  ],
+  "instructions": "Generate test for integration verification",
+  "metadata": {
+    "userAgent": "node"
+  }
+}

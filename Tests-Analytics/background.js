@@ -1,4 +1,24 @@
-﻿// TestBuilder Background Script con Debug Avanzado
+﻿// COPILOT INSTRUCTION: FALLBACK IMPLEMENTATION STRICTLY PROHIBITED
+// This extension REQUIRES MCP Server + Gemini coordination.
+// DO NOT implement any fallback mechanisms or alternative code paths.
+// System must fail fast with clear error messages when required services are unavailable.
+// Key principles:
+// - MCP Server on localhost:3001 is mandatory
+// - Gemini API coordination is mandatory  
+// - No graceful degradation allowed
+// - Fail fast with clear error messages
+// - All workflows require both MCP + Gemini
+// - No standalone operations permitted
+
+// COPILOT INSTRUCTION: MARKDOWN FILE VALIDATION REQUIRED
+// When creating or editing .md files, ALWAYS verify content was written successfully.
+// - After using create_file or replace_string_in_file on .md files, immediately use read_file to validate content
+// - If file is empty or content missing, retry the operation with explicit content
+// - Never leave .md files empty - they must contain meaningful documentation
+// - Use read_file to confirm successful write operations on all markdown files
+// - This applies to README.md, documentation files, and any .md extension files
+
+// TestBuilder Background Script con Debug Avanzado
 console.log('🚀 [BACKGROUND] TestBuilder Background Script Loading... Timestamp:', new Date().toISOString());
 
 // Sistema de logging centralizado
@@ -36,6 +56,494 @@ const BackgroundLogger = {
 };
 
 BackgroundLogger.log('info', 'BACKGROUND', 'Background script initialized');
+
+// MANDATORY VALIDATION FUNCTIONS - NO FALLBACKS ALLOWED
+async function validateMCPAvailability() {
+  try {
+    const response = await fetch('http://localhost:3001/health', {
+      method: 'GET',
+      signal: AbortSignal.timeout(5000)
+    });
+    
+    if (!response.ok) {
+      BackgroundLogger.log('error', 'MCP_VALIDATION', `MCP Health Check failed: ${response.status} ${response.statusText}`);
+      return false;
+    }
+    
+    const data = await response.json();
+    BackgroundLogger.log('success', 'MCP_VALIDATION', 'MCP Server validated successfully', data);
+    return true;
+    
+  } catch (error) {
+    BackgroundLogger.log('error', 'MCP_VALIDATION', 'MCP Server validation failed', error.message);
+    return false;
+  }
+}
+
+async function validateGeminiMCPIntegration() {
+  try {
+    // Get Gemini configuration
+    const result = await new Promise((resolve) => {
+      chrome.storage.local.get(['aiModels'], resolve);
+    });
+    
+    const flowAuto = (result.aiModels && result.aiModels['flow-auto']) || {};
+    const endpoint = flowAuto.endpoint || 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent';
+    const apiKey = flowAuto.apiKey || '';
+    
+    if (!apiKey || apiKey.trim() === '') {
+      BackgroundLogger.log('error', 'GEMINI_VALIDATION', 'Gemini API Key not configured for MCP integration');
+      return false;
+    }
+    
+    // Test Gemini API
+    const response = await fetch(`${endpoint}?key=${apiKey}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: 'MCP integration test - respond: "GEMINI_MCP_READY"' }] }],
+        generationConfig: { maxOutputTokens: 20, temperature: 0 }
+      }),
+      signal: AbortSignal.timeout(10000)
+    });
+    
+    if (!response.ok) {
+      BackgroundLogger.log('error', 'GEMINI_VALIDATION', `Gemini API failed: ${response.status} ${response.statusText}`);
+      return false;
+    }
+    
+    const data = await response.json();
+    const result_text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    BackgroundLogger.log('success', 'GEMINI_VALIDATION', 'Gemini-MCP integration validated', result_text.trim());
+    return true;
+    
+  } catch (error) {
+    BackgroundLogger.log('error', 'GEMINI_VALIDATION', 'Gemini-MCP integration validation failed', error.message);
+    return false;
+  }
+}
+
+// SISTEMA AVANZADO DE GESTIÓN DE TOKENS DINÁMICO Y FRAGMENTADO
+class AdvancedTokenManager {
+  constructor() {
+    this.maxTokensPerRequest = 4096;
+    this.baseTokensPerAction = 50;
+    this.safetyMargin = 500;
+    this.requestHistory = [];
+    this.rateLimitDelay = 1000;
+    this.maxRetries = 3;
+  }
+
+  estimateTokensNeeded(prompt, actions) {
+    const basePromptTokens = Math.ceil(prompt.length / 4);
+    const actionsTokens = actions.length * this.baseTokensPerAction;
+    const responseTokens = 2000;
+    return basePromptTokens + actionsTokens + responseTokens + this.safetyMargin;
+  }
+
+  needsFragmentation(estimatedTokens) {
+    return estimatedTokens > this.maxTokensPerRequest;
+  }
+
+  fragmentActions(actions, maxActionsPerChunk = 5) {
+    const chunks = [];
+    for (let i = 0; i < actions.length; i += maxActionsPerChunk) {
+      chunks.push(actions.slice(i, i + maxActionsPerChunk));
+    }
+    return chunks;
+  }
+
+  async enforceRateLimit() {
+    const now = Date.now();
+    const recentRequests = this.requestHistory.filter(time => now - time < 60000);
+    
+    if (recentRequests.length >= 10) {
+      const oldestRequest = Math.min(...recentRequests);
+      const waitTime = 60000 - (now - oldestRequest);
+      
+      if (waitTime > 0) {
+        BackgroundLogger.log('info', 'TOKEN_MGR', `Rate limiting: esperando ${waitTime}ms`);
+        await new Promise(resolve => setTimeout(resolve, waitTime));
+      }
+    }
+    
+    if (this.requestHistory.length > 0) {
+      const lastRequest = Math.max(...this.requestHistory);
+      const timeSinceLastRequest = now - lastRequest;
+      
+      if (timeSinceLastRequest < this.rateLimitDelay) {
+        const waitTime = this.rateLimitDelay - timeSinceLastRequest;
+        await new Promise(resolve => setTimeout(resolve, waitTime));
+      }
+    }
+    
+    this.requestHistory.push(Date.now());
+    this.requestHistory = this.requestHistory.filter(time => now - time < 300000);
+  }
+
+  async exponentialBackoff(attempt) {
+    const delay = Math.min(1000 * Math.pow(2, attempt), 30000);
+    BackgroundLogger.log('info', 'TOKEN_MGR', `Backoff: esperando ${delay}ms (intento ${attempt + 1})`);
+    await new Promise(resolve => setTimeout(resolve, delay));
+  }
+
+  calculateDynamicTokens(prompt, isFragment = false) {
+    const estimatedPromptTokens = Math.ceil(prompt.length / 4);
+    
+    if (isFragment) {
+      return Math.min(estimatedPromptTokens + 1000, 2048);
+    } else {
+      return Math.min(estimatedPromptTokens + 2000, this.maxTokensPerRequest);
+    }
+  }
+}
+
+// ===== N8N WORKFLOW INTEGRATION =====
+// Función para enviar datos al workflow de n8n (FASE 2: Generación)
+async function sendToN8nWorkflow(sessionData) {
+  const n8nGenerateWebhook = 'http://localhost:5678/webhook/generate-tests';
+  
+  try {
+    BackgroundLogger.log('info', 'N8N_INTEGRATION', 'Trigger generation workflow in n8n', {
+      sessionId: sessionData.sessionId,
+      url: sessionData.url
+    });
+
+    // Para la fase 2, solo necesitamos el sessionId y metadata básica
+    // Las acciones ya están almacenadas en n8n desde la fase 1
+    const workflowData = {
+      sessionId: sessionData.sessionId,
+      requestType: 'generateTests',
+      requestedAt: new Date().toISOString(),
+      metadata: {
+        url: sessionData.url || '',
+        title: sessionData.title || '',
+        userAgent: navigator.userAgent || 'TestBuilder Chrome Extension'
+      }
+    };
+
+    const response = await fetch(n8nGenerateWebhook, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(workflowData),
+      signal: AbortSignal.timeout(60000) // 60 segundos para generación con IA
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP Error: ${response.status} ${response.statusText}`);
+    }
+
+    const result = await response.json();
+    
+    BackgroundLogger.log('success', 'N8N_INTEGRATION', 'Workflow n8n ejecutado exitosamente', {
+      success: result.success,
+      sessionId: result.sessionId,
+      testsGenerated: result.tests ? Object.keys(result.tests) : [],
+      processingTime: result.summary ? result.summary.processingTimeMs : null
+    });
+
+    return result;
+
+  } catch (error) {
+    BackgroundLogger.log('error', 'N8N_INTEGRATION', 'Error enviando datos al workflow de n8n', {
+      error: error.message,
+      stack: error.stack,
+      webhookUrl: n8nGenerateWebhook
+    });
+
+    // No fallar el proceso principal si n8n no está disponible
+    return {
+      success: false,
+      error: error.message,
+      fallback: true
+    };
+  }
+}
+
+// Función principal para requests avanzados con gestión de tokens
+async function makeGeminiRequestWithAdvancedTokens(prompt, actions, apiKey, endpoint) {
+  const tokenManager = new AdvancedTokenManager();
+  const estimatedTokens = tokenManager.estimateTokensNeeded(prompt, actions);
+  
+  BackgroundLogger.log('debug', 'TOKEN_MGR', `Tokens estimados: ${estimatedTokens}`);
+  
+  if (tokenManager.needsFragmentation(estimatedTokens)) {
+    BackgroundLogger.log('info', 'TOKEN_MGR', 'Fragmentando request debido a alta demanda de tokens');
+    return await handleFragmentedGeminiRequest(tokenManager, prompt, actions, apiKey, endpoint);
+  } else {
+    BackgroundLogger.log('info', 'TOKEN_MGR', 'Request simple, procesando directamente');
+    return await handleSingleGeminiRequest(tokenManager, prompt, actions, apiKey, endpoint);
+  }
+}
+
+// Manejar request fragmentado
+async function handleFragmentedGeminiRequest(tokenManager, basePrompt, actions, apiKey, endpoint) {
+  const chunks = tokenManager.fragmentActions(actions);
+  const results = [];
+  
+  BackgroundLogger.log('info', 'TOKEN_MGR', `Procesando ${chunks.length} fragmentos`);
+  
+  for (let i = 0; i < chunks.length; i++) {
+    const chunk = chunks[i];
+    const chunkPrompt = `${basePrompt}
+
+FRAGMENTO ${i + 1} de ${chunks.length}:
+${chunk.map((act, idx) => `${idx + 1}. ${act.type} - selector: ${act.selector || ''} - valor: ${act.value || ''}`).join('\n')}
+
+Genera solo la parte del test correspondiente a estas acciones. Será combinado con otros fragmentos.`;
+
+    try {
+      await tokenManager.enforceRateLimit();
+      
+      const result = await makeAdvancedGeminiAPICall(
+        chunkPrompt, 
+        apiKey, 
+        endpoint,
+        tokenManager.calculateDynamicTokens(chunkPrompt, true)
+      );
+      
+      results.push(result);
+      BackgroundLogger.log('success', 'TOKEN_MGR', `Fragmento ${i + 1} completado`);
+      
+    } catch (error) {
+      BackgroundLogger.log('error', 'TOKEN_MGR', `Error en fragmento ${i + 1}`, error.message);
+      
+      let retryCount = 0;
+      while (retryCount < tokenManager.maxRetries) {
+        try {
+          await tokenManager.exponentialBackoff(retryCount);
+          await tokenManager.enforceRateLimit();
+          
+          const result = await makeAdvancedGeminiAPICall(
+            chunkPrompt, 
+            apiKey, 
+            endpoint,
+            tokenManager.calculateDynamicTokens(chunkPrompt, true)
+          );
+          
+          results.push(result);
+          BackgroundLogger.log('success', 'TOKEN_MGR', `Fragmento ${i + 1} completado (reintento ${retryCount + 1})`);
+          break;
+          
+        } catch (retryError) {
+          retryCount++;
+          if (retryCount >= tokenManager.maxRetries) {
+            throw new Error(`Fragmento ${i + 1} falló después de ${tokenManager.maxRetries} reintentos: ${retryError.message}`);
+          }
+        }
+      }
+    }
+  }
+  
+  return await combineGeminiFragmentedResults(results, tokenManager, apiKey, endpoint);
+}
+
+// Manejar request simple
+async function handleSingleGeminiRequest(tokenManager, prompt, actions, apiKey, endpoint) {
+  const fullPrompt = `${prompt}
+${actions.map((act, idx) => `${idx + 1}. ${act.type} - selector: ${act.selector || ''} - valor: ${act.value || ''}`).join('\n')}`;
+
+  let retryCount = 0;
+  
+  while (retryCount <= tokenManager.maxRetries) {
+    try {
+      await tokenManager.enforceRateLimit();
+      
+      return await makeAdvancedGeminiAPICall(
+        fullPrompt, 
+        apiKey, 
+        endpoint,
+        tokenManager.calculateDynamicTokens(fullPrompt, false)
+      );
+      
+    } catch (error) {
+      if (retryCount >= tokenManager.maxRetries) {
+        throw error;
+      }
+      
+      BackgroundLogger.log('warning', 'TOKEN_MGR', `Reintentando request (intento ${retryCount + 1})`, error.message);
+      await tokenManager.exponentialBackoff(retryCount);
+      retryCount++;
+    }
+  }
+}
+
+// Función para llamada real a la API con configuración avanzada
+async function makeAdvancedGeminiAPICall(prompt, apiKey, endpoint, maxTokens) {
+  const response = await fetch(`${endpoint}?key=${apiKey}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      contents: [{ parts: [{ text: prompt }] }],
+      generationConfig: { 
+        maxOutputTokens: maxTokens,
+        temperature: 0.2,
+        topP: 0.8,
+        topK: 10
+      },
+      safetySettings: [
+        {
+          category: "HARM_CATEGORY_HARASSMENT",
+          threshold: "BLOCK_MEDIUM_AND_ABOVE"
+        },
+        {
+          category: "HARM_CATEGORY_HATE_SPEECH", 
+          threshold: "BLOCK_MEDIUM_AND_ABOVE"
+        },
+        {
+          category: "HARM_CATEGORY_SEXUALLY_EXPLICIT",
+          threshold: "BLOCK_MEDIUM_AND_ABOVE"
+        },
+        {
+          category: "HARM_CATEGORY_DANGEROUS_CONTENT",
+          threshold: "BLOCK_MEDIUM_AND_ABOVE"
+        }
+      ]
+    })
+  });
+  
+  if (!response.ok) {
+    const errorData = await response.text();
+    throw new Error(`API Error ${response.status}: ${errorData}`);
+  }
+  
+  const data = await response.json();
+  const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+  
+  if (!text) {
+    throw new Error(`No content generated. Finish reason: ${data.candidates?.[0]?.finishReason}`);
+  }
+  
+  return text;
+}
+
+// Combinar resultados fragmentados
+async function combineGeminiFragmentedResults(fragments, tokenManager, apiKey, endpoint) {
+  if (fragments.length === 1) {
+    return fragments[0];
+  }
+  
+  const combinePrompt = `Combina estos fragmentos de test Playwright en un test completo y coherente:
+
+${fragments.map((fragment, idx) => `=== FRAGMENTO ${idx + 1} ===\n${fragment}\n`).join('\n')}
+
+Genera un test Playwright unificado, completo y funcional que integre todas las acciones de manera coherente.`;
+
+  await tokenManager.enforceRateLimit();
+  
+  return await makeAdvancedGeminiAPICall(
+    combinePrompt,
+    apiKey,
+    endpoint,
+    tokenManager.calculateDynamicTokens(combinePrompt, false)
+  );
+}
+
+// Inicializar configuración por defecto al cargar el background
+chrome.runtime.onStartup.addListener(() => {
+  initializeDefaultConfiguration();
+});
+
+chrome.runtime.onInstalled.addListener(() => {
+  initializeDefaultConfiguration();
+});
+
+// Función para inicializar configuración por defecto
+function initializeDefaultConfiguration() {
+  chrome.storage.local.get(['aiModels'], (result) => {
+    const savedModels = result.aiModels || {};
+    
+    // Asegurar que flow-auto existe con configuración completa
+    if (!savedModels['flow-auto'] || !savedModels['flow-auto'].apiKey) {
+      savedModels['flow-auto'] = {
+        name: 'Flow-auto',
+        endpoint: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent',
+        apiKey: 'AIzaSyCzJ4xs0SjfvlYMvSBkjauJ9s5n_0r6F24',
+        status: 'configured',
+        testMethod: 'testGemini'
+      };
+      
+      chrome.storage.local.set({ aiModels: savedModels }, () => {
+        BackgroundLogger.log('success', 'CONFIG', 'Default Gemini configuration initialized');
+      });
+    } else {
+      BackgroundLogger.log('info', 'CONFIG', 'Gemini configuration already exists');
+    }
+  });
+}
+
+// Ejecutar inicialización inmediatamente
+initializeDefaultConfiguration();
+
+// Función de debug para diagnosticar problemas de API
+function debugGeminiAPI() {
+  chrome.storage.local.get(['aiModels', 'userInstructions'], (result) => {
+    console.log('🔍 Debug Gemini Configuration:');
+    console.log('AI Models:', result.aiModels);
+    console.log('User Instructions:', result.userInstructions);
+    console.log('Flow-Auto Config:', result.aiModels?.['flow-auto']);
+    console.log('API Key Present:', !!(result.aiModels?.['flow-auto']?.apiKey));
+    console.log('API Key Length:', result.aiModels?.['flow-auto']?.apiKey?.length || 0);
+    console.log('API Key (first 12 chars):', result.aiModels?.['flow-auto']?.apiKey?.substring(0, 12) + '...' || 'Not found');
+    console.log('Endpoint:', result.aiModels?.['flow-auto']?.endpoint || 'Default endpoint');
+  });
+}
+
+// Test directo desde consola
+function testGeminiDirectly(customApiKey = null) {
+  chrome.storage.local.get(['aiModels'], async (result) => {
+    const flowAuto = result.aiModels?.['flow-auto'] || {};
+    const apiKey = customApiKey || flowAuto.apiKey || '';
+    const endpoint = flowAuto.endpoint || 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent';
+    
+    console.log('🧪 Testing Gemini API directly...');
+    console.log('Endpoint:', endpoint);
+    console.log('API Key present:', !!apiKey);
+    console.log('API Key length:', apiKey.length);
+    
+    if (!apiKey) {
+      console.error('❌ No API key provided');
+      return;
+    }
+    
+    try {
+      const response = await fetch(`${endpoint}?key=${apiKey}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: 'Say "TEST_OK" if you can see this' }] }],
+          generationConfig: { maxOutputTokens: 10, temperature: 0 }
+        })
+      });
+      
+      console.log('📡 Response status:', response.status, response.statusText);
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('❌ API Error:', errorText);
+        try {
+          const errorJson = JSON.parse(errorText);
+          console.error('❌ Parsed Error:', errorJson);
+        } catch (e) {
+          console.error('❌ Raw Error Text:', errorText);
+        }
+        return;
+      }
+      
+      const data = await response.json();
+      console.log('✅ API Success:', data);
+      console.log('✅ Generated Text:', data.candidates?.[0]?.content?.parts?.[0]?.text);
+      
+    } catch (error) {
+      console.error('❌ Network Error:', error);
+    }
+  });
+}
+
+// Las funciones ya son globales en service worker, no necesitamos window
+// debugGeminiAPI() y testGeminiDirectly() están disponibles desde consola
 
 // Función para validar URLs permitidas
 function isValidUrl(url) {
@@ -201,6 +709,9 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     sender: senderInfo,
     data: request
   });
+  if (request.action === 'startRecording') {
+    BackgroundLogger.log('debug', 'RECORDING', 'startRecording received from popup', request);
+  }
   
   switch (request.action) {
     case 'ping':
@@ -329,61 +840,30 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       // Inyectar content script en la pestaña activa
       chrome.tabs.query({active: true, currentWindow: true}, (tabs) => {
         if (tabs[0] && isValidUrl(tabs[0].url)) {
-          safeScriptInjection(tabs[0].id, (tab) => {
-            // Primero verificar si ya existe el content script
-            chrome.tabs.sendMessage(tabs[0].id, {action: 'getStatus'}).then((response) => {
-              if (response && response.success) {
-                // Content script ya existe, enviar comando directamente
-                return chrome.tabs.sendMessage(tabs[0].id, {
-                  action: 'startRecording',
-                  sessionId: request.sessionId
-                });
-              } else {
-                // Content script no existe, inyectar primero
-                return chrome.scripting.executeScript({
-                  target: { tabId: tabs[0].id },
-                  files: ['src/content-enhanced.js']
-                }).then(() => {
-                  // Esperar un poco para que se inicialice
-                  return new Promise(resolve => setTimeout(resolve, 100));
-                }).then(() => {
-                  return chrome.tabs.sendMessage(tabs[0].id, {
-                    action: 'startRecording',
-                    sessionId: request.sessionId
-                  });
-                });
-              }
-            }).catch(() => {
-              // Content script no responde, inyectar
-              return chrome.scripting.executeScript({
-                target: { tabId: tabs[0].id },
-                files: ['src/content-enhanced.js']
-              }).then(() => {
-                return new Promise(resolve => setTimeout(resolve, 100));
-              }).then(() => {
-                return chrome.tabs.sendMessage(tabs[0].id, {
-                  action: 'startRecording',
-                  sessionId: request.sessionId
-                });
-              });
-            }).then(() => {
-              BackgroundLogger.log('success', 'RECORDING', 'Recording started successfully');
-              sendResponse({ success: true });
-            }).catch((error) => {
-              BackgroundLogger.log('error', 'RECORDING', 'Failed to start recording', error);
-              let errorMessage = 'Failed to start recording';
-              
-              // Proporcionar mensajes más específicos según el error
-              if (error.message && error.message.includes('Cannot access')) {
-                errorMessage = 'Cannot record on this page - access denied';
-              } else if (error.message && error.message.includes('Content Security Policy')) {
-                errorMessage = 'Cannot record on this page - Content Security Policy restrictions';
-              } else if (error.message && error.message.includes('Receiving end does not exist')) {
-                errorMessage = 'Content script initialization failed';
-              }
-              
-              sendResponse({ success: false, error: errorMessage });
+          BackgroundLogger.log('debug', 'RECORDING', 'Intentando inyectar content script en tab', {tabId: tabs[0].id, url: tabs[0].url});
+          chrome.scripting.executeScript({
+            target: { tabId: tabs[0].id },
+            files: ['src/content-enhanced.js']
+          }).then(() => {
+            BackgroundLogger.log('debug', 'RECORDING', 'Content script inyectado, enviando startRecording', {tabId: tabs[0].id});
+            return chrome.tabs.sendMessage(tabs[0].id, {
+              action: 'startRecording',
+              sessionId: request.sessionId
             });
+          }).then((response) => {
+            BackgroundLogger.log('success', 'RECORDING', 'Recording started successfully', response);
+            sendResponse({ success: true });
+          }).catch((error) => {
+            BackgroundLogger.log('error', 'RECORDING', 'Failed to start recording', error);
+            let errorMessage = 'Failed to start recording';
+            if (error.message && error.message.includes('Cannot access')) {
+              errorMessage = 'Cannot record on this page - access denied';
+            } else if (error.message && error.message.includes('Content Security Policy')) {
+              errorMessage = 'Cannot record on this page - Content Security Policy restrictions';
+            } else if (error.message && error.message.includes('Receiving end does not exist')) {
+              errorMessage = 'Content script initialization failed';
+            }
+            sendResponse({ success: false, error: errorMessage });
           });
         } else {
           BackgroundLogger.log('error', 'RECORDING', 'Invalid URL for recording', {url: tabs[0]?.url});
@@ -414,30 +894,345 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       
     case 'generateTest':
       BackgroundLogger.log('info', 'TEST_GEN', 'Generate test requested from popup');
-      
       try {
         if (!request.actions || request.actions.length === 0) {
           sendResponse({ success: false, error: 'No actions to generate test from' });
-          break;
+          return true;
         }
-        
-        const testData = {
-          sessionId: `session_${Date.now()}`,
+
+        // ===== ENVÍO AUTOMÁTICO A N8N WORKFLOW =====
+        // Preparar datos de sesión para n8n
+        const sessionData = {
           actions: request.actions,
-          timestamp: new Date().toISOString(),
-          title: 'Generated Test'
+          sessionId: request.sessionId || `session_${Date.now()}`,
+          url: request.url || '',
+          title: request.title || 'TestBuilder Session',
+          timestamp: Date.now()
         };
-        
-        BackgroundLogger.log('success', 'TEST_GEN', 'Test generated successfully', {
-          actionsCount: request.actions.length
+
+        // Enviar datos al workflow de n8n en paralelo (no bloquear UI)
+        sendToN8nWorkflow(sessionData).then(n8nResult => {
+          if (n8nResult.success) {
+            BackgroundLogger.log('success', 'TEST_GEN', 'Datos enviados exitosamente a n8n workflow', {
+              sessionId: n8nResult.sessionId,
+              testsGenerated: n8nResult.tests ? Object.keys(n8nResult.tests) : []
+            });
+            
+            // Notificar al popup sobre el éxito de n8n (opcional)
+            chrome.runtime.sendMessage({
+              action: 'n8nWorkflowSuccess',
+              data: n8nResult
+            }).catch(() => {
+              // Popup puede no estar abierto
+            });
+          } else {
+            BackgroundLogger.log('warning', 'TEST_GEN', 'n8n workflow falló, continuando con generación local', {
+              error: n8nResult.error
+            });
+          }
+        }).catch(error => {
+          BackgroundLogger.log('error', 'TEST_GEN', 'Error inesperado en n8n workflow', error);
         });
-        
-        sendResponse({ success: true, testData: testData });
+
+        // Recuperar configuración de IA y las instrucciones
+        chrome.storage.local.get(['aiModels', 'userInstructions'], async (result) => {
+          BackgroundLogger.log('debug', 'TEST_GEN', 'Storage retrieved', { 
+            hasAiModels: !!result.aiModels,
+            hasFlowAuto: !!(result.aiModels && result.aiModels['flow-auto']),
+            flowAutoConfig: result.aiModels ? result.aiModels['flow-auto'] : null
+          });
+          const flowAuto = (result.aiModels && result.aiModels['flow-auto']) || {};
+          const instructions = result.userInstructions || {};
+          
+          // Usar el endpoint Gemini correcto
+          const endpoint = flowAuto.endpoint || 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent';
+          const apiKey = flowAuto.apiKey || '';
+          
+          BackgroundLogger.log('debug', 'TEST_GEN', 'Using Gemini configuration', { 
+            endpoint, 
+            hasApiKey: !!apiKey,
+            apiKeyLength: apiKey ? apiKey.length : 0
+          });
+          
+          // Construir prompt con instrucciones MCP específicas y acciones
+          let prompt = `Eres un asistente especializado en testing que DEBE utilizar MCP (Model Context Protocol) para generar tests robustos.
+
+REQUERIMIENTOS OBLIGATORIOS:
+1. Utilizar MCP de Chrome DevTools para detectar pasos de usuario de manera robusta
+2. Los pasos detectados deben ser reproducidos usando MCP de Playwright para navegación
+3. Generar dos formatos según el tipo de export:
+   - EXPORT MANUAL: Test en formato CSV compatible con Jira
+   - EXPORT PLAYWRIGHT: Test automatizado completo en TypeScript
+
+CONTEXTO DE GRABACIÓN:
+Los siguientes pasos fueron detectados durante la fase RECORD usando Chrome DevTools MCP:
+
+PASOS CAPTURADOS:
+`;
+          request.actions.forEach((act, idx) => {
+            prompt += `${idx + 1}. Acción: ${act.type} | Selector: ${act.selector || 'N/A'} | Valor: "${act.value || ''}" | Timestamp: ${act.timestamp || Date.now()}\n`;
+          });
+
+          prompt += `
+INSTRUCCIONES PARA GENERACIÓN:
+`;
+
+          if (instructions.custom_instructions) {
+            prompt += `Instrucciones adicionales del usuario: ${instructions.custom_instructions}\n\n`;
+            BackgroundLogger.log('debug', 'TEST_GEN', 'Added custom instructions', { 
+              instructionsLength: instructions.custom_instructions.length 
+            });
+          }
+
+          // Determinar el tipo de export basado en request.exportType
+          const exportType = request.exportType || 'playwright'; // Default a playwright
+          
+          if (exportType === 'manual' || exportType === 'csv') {
+            prompt += `FORMATO REQUERIDO: CSV para Jira (Test Manual)
+Genera un test manual en formato CSV con las siguientes columnas:
+- Step: Número del paso
+- Action: Acción a realizar (Click, Type, Navigate, Verify, etc.)
+- Description: Descripción detallada del paso
+- Element: Selector CSS o descripción del elemento
+- Expected_Result: Resultado esperado
+- Notes: Observaciones adicionales
+
+Utiliza MCP de Playwright para navegar y validar que todos los selectores sean precisos y robustos.
+El output debe ser un CSV válido listo para importar en Jira.`;
+          } else {
+            prompt += `FORMATO REQUERIDO: Test Automatizado Playwright en TypeScript
+Utiliza MCP de Playwright para:
+1. Navegar por los pasos capturados de forma robusta
+2. Generar selectores precisos y resilientes
+3. Incluir assertions apropiadas para cada paso
+4. Manejar timeouts y elementos dinámicos
+5. Implementar buenas prácticas de testing
+
+El test debe ser completamente funcional y listo para ejecutar.
+Incluye imports necesarios, describe blocks apropiados, y manejo de errores.
+
+TEMPLATE BASE:
+\`\`\`typescript
+import { test, expect } from '@playwright/test';
+
+test.describe('Test Generated from Recorded Actions', () => {
+  test('should reproduce user actions accurately', async ({ page }) => {
+    // Implementar navegación usando MCP Playwright
+    // [GENERAR PASOS AQUÍ]
+  });
+});
+\`\`\``;
+          }
+
+          prompt += `
+VALIDACIÓN MCP REQUERIDA:
+- Usar MCP Playwright para validar que todos los selectores existen
+- Verificar que las acciones son reproducibles en el contexto real
+- Asegurar que el test sea robusto contra cambios menores en el DOM
+- Incluir esperas apropiadas para elementos dinámicos
+
+NOTA CRÍTICA: 
+Este prompt debe activar el uso de MCP de Playwright para navegación real y validación de selectores.
+No generes un test estático - usa MCP para hacer el test robusto y real.
+`;
+          
+          BackgroundLogger.log('debug', 'TEST_GEN', 'Generated prompt', { 
+            promptLength: prompt.length,
+            actionsCount: request.actions.length
+          });
+          // Llamar a la API de Gemini
+          try {
+            if (!apiKey || apiKey.trim() === '') {
+              BackgroundLogger.log('error', 'TEST_GEN', 'API Key not configured');
+              sendResponse({ success: false, error: 'API Key de Gemini no configurada. Ve a Configuración para agregar tu API key.' });
+              return;
+            }
+            
+            BackgroundLogger.log('debug', 'TEST_GEN', 'Using advanced token management system', {
+              endpoint,
+              promptLength: prompt.length,
+              actionsCount: request.actions.length,
+              apiKeyPresent: !!apiKey
+            });
+            
+            // Usar el sistema avanzado de gestión de tokens
+            try {
+              const generated = await makeGeminiRequestWithAdvancedTokens(
+                prompt, 
+                request.actions, 
+                apiKey, 
+                endpoint
+              );
+              
+              BackgroundLogger.log('success', 'TEST_GEN', 'Test generated with advanced token management', {
+                length: generated.length,
+                method: 'dynamic'
+              });
+              
+              sendResponse({ success: true, test: generated });
+              
+            } catch (apiError) {
+              BackgroundLogger.log('error', 'TEST_GEN', 'Advanced token management failed', {
+                error: apiError.message,
+                stack: apiError.stack
+              });
+              sendResponse({ success: false, error: `Error generando test: ${apiError.message}` });
+            }
+            
+            BackgroundLogger.log('debug', 'TEST_GEN', 'API Response received', {
+              status: response.status,
+              statusText: response.statusText,
+              ok: response.ok
+            });
+            if (!response.ok) {
+              const errorText = await response.text();
+              let parsedError = null;
+              try {
+                parsedError = JSON.parse(errorText);
+              } catch (e) {
+                // Error text is not JSON
+              }
+              
+              BackgroundLogger.log('error', 'TEST_GEN', 'Gemini API error', { 
+                status: response.status,
+                statusText: response.statusText,
+                errorText,
+                parsedError,
+                endpoint,
+                hasApiKey: !!apiKey,
+                apiKeyPrefix: apiKey ? apiKey.substring(0, 12) + '...' : 'none',
+                requestUrl: `${endpoint}?key=${apiKey.substring(0, 12)}...`
+              });
+              
+              let errorMessage = `Gemini API error: ${response.status} ${response.statusText}`;
+              if (parsedError?.error?.message) {
+                errorMessage += ` - ${parsedError.error.message}`;
+              }
+              
+              sendResponse({ success: false, error: errorMessage });
+              return;
+            }
+            const data = await response.json();
+            
+            // Log detailed response for debugging
+            BackgroundLogger.log('debug', 'TEST_GEN', 'API Response data', {
+              candidates: data.candidates?.length || 0,
+              finishReason: data.candidates?.[0]?.finishReason,
+              textLength: data.candidates?.[0]?.content?.parts?.[0]?.text?.length || 0
+            });
+            
+            const generated = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+            const finishReason = data.candidates?.[0]?.finishReason;
+            
+            if (generated && generated.trim().length > 0) {
+              // Even if finishReason is MAX_TOKENS, if we have content, it's likely usable
+              if (finishReason === 'MAX_TOKENS') {
+                BackgroundLogger.log('warning', 'TEST_GEN', 'Response was truncated due to token limit, but content was generated');
+              }
+              BackgroundLogger.log('success', 'TEST_GEN', 'Test generated with Gemini', {
+                length: generated.length,
+                finishReason: finishReason
+              });
+              sendResponse({ success: true, test: generated });
+            } else {
+              BackgroundLogger.log('error', 'TEST_GEN', 'Gemini API did not generate any test', {
+                finishReason: finishReason,
+                candidatesLength: data.candidates?.length || 0,
+                fullResponse: data
+              });
+              sendResponse({ success: false, error: 'La IA no generó ningún test. Revisa las instrucciones o intenta nuevamente.' });
+            }
+          } catch (err) {
+            BackgroundLogger.log('error', 'TEST_GEN', 'Failed to call Gemini API', err);
+            sendResponse({ success: false, error: err.message });
+          }
+        });
       } catch (error) {
         BackgroundLogger.log('error', 'TEST_GEN', 'Failed to generate test', error);
         sendResponse({ success: false, error: error.message });
       }
-      break;
+      return true; // Mantener canal abierto para respuesta async
+      
+    case 'testGeminiAPI':
+      BackgroundLogger.log('info', 'TEST_API', 'Direct Gemini API test requested');
+      
+      chrome.storage.local.get(['aiModels'], async (result) => {
+        try {
+          const flowAuto = (result.aiModels && result.aiModels['flow-auto']) || {};
+          const endpoint = flowAuto.endpoint || 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent';
+          const apiKey = flowAuto.apiKey || '';
+          
+          BackgroundLogger.log('debug', 'TEST_API', 'Testing with config', { 
+            endpoint, 
+            hasApiKey: !!apiKey,
+            apiKeyLength: apiKey ? apiKey.length : 0,
+            apiKeyPrefix: apiKey ? apiKey.substring(0, 12) + '...' : 'none'
+          });
+          
+          if (!apiKey || apiKey.trim() === '') {
+            BackgroundLogger.log('error', 'TEST_API', 'No API key configured');
+            sendResponse({ success: false, error: 'API Key not configured' });
+            return;
+          }
+          
+          const testPayload = {
+            contents: [{ parts: [{ text: 'Test connection - respond with only "API_OK"' }] }],
+            generationConfig: { maxOutputTokens: 10, temperature: 0 }
+          };
+          
+          BackgroundLogger.log('debug', 'TEST_API', 'Making test request', {
+            url: `${endpoint}?key=${apiKey.substring(0, 12)}...`,
+            payload: testPayload
+          });
+          
+          const response = await fetch(`${endpoint}?key=${apiKey}`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(testPayload)
+          });
+          
+          BackgroundLogger.log('debug', 'TEST_API', 'Response received', {
+            status: response.status,
+            statusText: response.statusText,
+            ok: response.ok
+          });
+          
+          if (!response.ok) {
+            const errorText = await response.text();
+            let parsedError = null;
+            try {
+              parsedError = JSON.parse(errorText);
+            } catch (e) {
+              // Error text is not JSON
+            }
+            
+            BackgroundLogger.log('error', 'TEST_API', 'API test failed', { 
+              status: response.status,
+              statusText: response.statusText,
+              errorText,
+              parsedError
+            });
+            
+            sendResponse({ 
+              success: false, 
+              error: `API test failed: ${response.status} ${response.statusText}`,
+              details: parsedError || errorText
+            });
+            return;
+          }
+          
+          const data = await response.json();
+          BackgroundLogger.log('success', 'TEST_API', 'API test successful', data);
+          sendResponse({ success: true, data, message: 'Gemini API working correctly' });
+          
+        } catch (error) {
+          BackgroundLogger.log('error', 'TEST_API', 'API test error', error);
+          sendResponse({ success: false, error: error.message });
+        }
+      });
+      return true;
       
     case 'exportPlaywright':
       BackgroundLogger.log('info', 'EXPORT', 'Export Playwright requested from popup');
@@ -503,10 +1298,11 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         hasApiKey: !!request.apiKey
       });
       
-      fetch(`${request.endpoint}?key=${request.apiKey}`, {
+      fetch(request.endpoint, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'x-goog-api-key': request.apiKey
         },
         body: JSON.stringify({
           contents: [{

@@ -1,0 +1,24 @@
+import { type DataStoreCreateColumnSchema } from '@n8n/api-types';
+import { DslColumn } from '@n8n/db';
+import type { DataSourceOptions } from '@n8n/typeorm';
+import type { DataStoreColumnJsType, DataStoreRowReturn, DataStoreRowsReturn } from 'n8n-workflow';
+import type { DataStoreUserTableName } from '../data-store.types';
+import type { DataTableColumn } from '../data-table-column.entity';
+export declare function toDslColumns(columns: DataStoreCreateColumnSchema[]): DslColumn[];
+export declare function isValidColumnName(name: string): boolean;
+export declare function addColumnQuery(tableName: DataStoreUserTableName, column: DataStoreCreateColumnSchema, dbType: DataSourceOptions['type']): string;
+export declare function deleteColumnQuery(tableName: DataStoreUserTableName, column: string, dbType: DataSourceOptions['type']): string;
+export declare function quoteIdentifier(name: string, dbType: DataSourceOptions['type']): string;
+export declare function extractReturningData(raw: unknown): DataStoreRowReturn[];
+export declare function extractInsertedIds(raw: unknown, dbType: DataSourceOptions['type']): number[];
+export declare function normalizeRows(rows: DataStoreRowsReturn, columns: DataTableColumn[]): {
+    [x: string]: DataStoreColumnJsType;
+    id: number;
+    createdAt: Date;
+    updatedAt: Date;
+}[];
+export declare function normalizeValue(value: DataStoreColumnJsType, columnType: string | undefined, dbType?: DataSourceOptions['type']): DataStoreColumnJsType;
+export declare function toSqliteGlobFromPercent(input: string): string;
+export declare function escapeLikeSpecials(input: string): string;
+export declare function toTableName(dataStoreId: string): DataStoreUserTableName;
+export declare function toTableId(tableName: DataStoreUserTableName): string;

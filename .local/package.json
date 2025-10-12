@@ -1,0 +1,52 @@
+{
+  "name": "tests-analytics-mcp",
+  "version": "1.0.0",
+  "description": "Local MCP Test Generator - Chrome Extension + Node Service + Playwright Runner",
+  "main": "src/server.js",
+  "type": "module",
+  "scripts": {
+    "dev": "node src/server.js",
+    "start": "npm run dev",
+    "test": "playwright test",
+    "mcp:cdp:start": "node src/engines/cdp-recorder.js start",
+    "mcp:cdp:stop": "node src/engines/cdp-recorder.js stop",
+    "run:test": "node src/engines/playwright-runner.js",
+    "clean": "node scripts/clean-old-jobs.js",
+    "lint": "eslint src/",
+    "format": "prettier --write src/"
+  },
+  "dependencies": {
+    "@playwright/test": "^1.56.0",
+    "chrome-remote-interface": "^0.33.0",
+    "cors": "^2.8.5",
+    "express": "^4.18.2",
+    "fs-extra": "^11.1.1",
+    "morgan": "^1.10.0",
+    "node-fetch": "^3.3.2",
+    "playwright": "^1.56.0",
+    "uuid": "^9.0.1"
+  },
+  "devDependencies": {
+    "eslint": "^8.54.0",
+    "nodemon": "^3.0.1",
+    "prettier": "^3.1.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "keywords": [
+    "test-automation",
+    "mcp",
+    "playwright",
+    "chrome-extension",
+    "gherkin",
+    "jira",
+    "xray"
+  ],
+  "author": "Tests Analytics Team",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/LoaQA/Tests-Analytics"
+  }
+}

@@ -1,4 +1,5 @@
 // TestBuilder Pro - Enhanced Content Script
+(function() {
 console.log('🎬 [CONTENT] TestBuilder Pro Enhanced Loading... Timestamp:', new Date().toISOString());
 
 // Verificar restricciones de CSP y URL
@@ -365,6 +366,9 @@ class TestBuilderPro {
       this.saveSessionState();
       this.notifyPopup('actionCaptured', action);
       
+      // Enviar acción a n8n en tiempo real
+      this.sendActionToN8n(action);
+      
     } catch (error) {
       ContentLogger.log('error', 'Failed to record click', error);
     }
@@ -396,6 +400,9 @@ class TestBuilderPro {
       this.saveSessionState();
       this.notifyPopup('actionCaptured', action);
       
+      // Enviar acción a n8n en tiempo real
+      this.sendActionToN8n(action);
+      
     } catch (error) {
       ContentLogger.log('error', 'Failed to record input', error);
     }
@@ -425,6 +432,9 @@ class TestBuilderPro {
         
         this.saveSessionState();
         this.notifyPopup('actionCaptured', action);
+        
+        // Enviar acción a n8n en tiempo real
+        this.sendActionToN8n(action);
       }
     } catch (error) {
       ContentLogger.log('error', 'Failed to record keydown', error);
@@ -453,6 +463,9 @@ class TestBuilderPro {
       
       this.saveSessionState();
       this.notifyPopup('actionCaptured', action);
+      
+      // Enviar acción a n8n en tiempo real
+      this.sendActionToN8n(action);
       
     } catch (error) {
       ContentLogger.log('error', 'Failed to record submit', error);
@@ -533,6 +546,67 @@ class TestBuilderPro {
       });
     } catch (error) {
       ContentLogger.log('warning', 'Could not notify popup', { action, error });
+    }
+  }
+
+  // ===== REAL-TIME N8N INTEGRATION =====
+  async sendActionToN8n(action) {
+    // Verificar si la integración n8n está habilitada
+    try {
+      const result = await chrome.storage.local.get(['n8nIntegrationEnabled']);
+      if (result.n8nIntegrationEnabled === false) {
+        return; // n8n integration disabled
+      }
+    } catch (error) {
+      ContentLogger.log('warning', 'Could not check n8n settings', error);
+      return;
+    }
+
+    const n8nActionWebhook = 'http://localhost:5678/webhook/action-capture';
+    
+    try {
+      const payload = {
+        ...action,
+        sessionId: this.sessionId,
+        url: window.location.href,
+        title: document.title,
+        userAgent: navigator.userAgent
+      };
+
+      ContentLogger.log('debug', 'Sending action to n8n', {
+        actionType: action.type,
+        sessionId: this.sessionId,
+        webhook: n8nActionWebhook
+      });
+
+      const response = await fetch(n8nActionWebhook, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+        signal: AbortSignal.timeout(5000) // 5 segundos timeout
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        ContentLogger.log('success', 'Action sent to n8n successfully', {
+          actionType: action.type,
+          sessionId: result.sessionId,
+          responseTime: Date.now() - action.timestamp
+        });
+      } else {
+        ContentLogger.log('warning', 'n8n webhook response error', {
+          status: response.status,
+          statusText: response.statusText
+        });
+      }
+    } catch (error) {
+      // No fallar el proceso principal si n8n no está disponible
+      ContentLogger.log('debug', 'n8n action sending failed (non-critical)', {
+        error: error.message,
+        actionType: action.type
+      });
     }
   }
 
@@ -752,3 +826,4 @@ if (typeof window.testBuilderInstance === 'undefined') {
 
 ContentLogger.log('success', 'TestBuilder Pro Enhanced Content Script Loaded');
 console.log('🚀 TestBuilder Pro Enhanced Content Script Loaded');
+})();

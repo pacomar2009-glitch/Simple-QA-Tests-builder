@@ -1,0 +1,38 @@
+{
+  "testTitle": "Test test.com - clicking",
+  "url": "https://test.com",
+  "instructions": "test",
+  "steps": [
+    {
+      "action": "goto",
+      "selector": null,
+      "value": "https://test.com",
+      "options": {
+        "waitUntil": "networkidle"
+      }
+    },
+    {
+      "action": "click",
+      "selector": "button",
+      "value": null,
+      "options": {
+        "timeout": 5000,
+        "description": "Click on button"
+      }
+    }
+  ],
+  "assertions": [
+    {
+      "type": "visible",
+      "selector": "button",
+      "expected": true,
+      "description": "Button should be visible and clickable"
+    }
+  ],
+  "metadata": {
+    "originalStepCount": 1,
+    "mcpStepCount": 2,
+    "assertionCount": 1,
+    "generatedAt": "2025-10-10T17:50:03.767Z"
+  }
+}

@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TestBuilder Pro - Test Page</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            min-height: 100vh;
+        }
+        
+        .container {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 30px;
+            margin: 20px 0;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        h1 {
+            text-align: center;
+            color: #fff;
+            margin-bottom: 30px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        
+        input[type="text"],
+        input[type="email"],
+        input[type="password"],
+        textarea,
+        select {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.9);
+            color: #333;
+            font-size: 16px;
+            box-sizing: border-box;
+        }
+        
+        button {
+            background: linear-gradient(45deg, #FF6B6B, #4ECDC4);
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px 5px;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+        }
+        
+        .btn-secondary {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+        }
+        
+        .action-buttons {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            justify-content: center;
+            margin: 20px 0;
+        }
+        
+        .test-area {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 10px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        
+        .checkbox-group {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+        
+        .checkbox-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        input[type="checkbox"],
+        input[type="radio"] {
+            width: auto;
+            margin: 0;
+        }
+        
+        #status {
+            background: rgba(0, 255, 0, 0.2);
+            border-radius: 8px;
+            padding: 15px;
+            margin: 20px 0;
+            text-align: center;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎬 TestBuilder Pro - Test Page</h1>
+        <p>Esta es una página de prueba para validar la funcionalidad de grabación de TestBuilder Pro. Interactúa con los elementos para probar la captura de acciones.</p>
+        
+        <div id="status">Ready for testing! 🚀</div>
+    </div>
+
+    <div class="container">
+        <h2>📝 Formulario de Prueba</h2>
+        <form id="testForm">
+            <div class="form-group">
+                <label for="username">Username:</label>
+                <input type="text" id="username" name="username" placeholder="Enter your username">
+            </div>
+            
+            <div class="form-group">
+                <label for="email">Email:</label>
+                <input type="email" id="email" name="email" placeholder="Enter your email">
+            </div>
+            
+            <div class="form-group">
+                <label for="password">Password:</label>
+                <input type="password" id="password" name="password" placeholder="Enter your password">
+            </div>
+            
+            <div class="form-group">
+                <label for="country">Country:</label>
+                <select id="country" name="country">
+                    <option value="">Select Country</option>
+                    <option value="us">United States</option>
+                    <option value="uk">United Kingdom</option>
+                    <option value="ca">Canada</option>
+                    <option value="mx">Mexico</option>
+                    <option value="es">Spain</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label for="comments">Comments:</label>
+                <textarea id="comments" name="comments" rows="4" placeholder="Enter your comments here..."></textarea>
+            </div>
+            
+            <div class="form-group">
+                <label>Preferences:</label>
+                <div class="checkbox-group">
+                    <div class="checkbox-item">
+                        <input type="checkbox" id="newsletter" name="newsletter" value="yes">
+                        <label for="newsletter">Newsletter</label>
+                    </div>
+                    <div class="checkbox-item">
+                        <input type="checkbox" id="updates" name="updates" value="yes">
+                        <label for="updates">Product Updates</label>
+                    </div>
+                    <div class="checkbox-item">
+                        <input type="checkbox" id="offers" name="offers" value="yes">
+                        <label for="offers">Special Offers</label>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label>Account Type:</label>
+                <div class="checkbox-group">
+                    <div class="checkbox-item">
+                        <input type="radio" id="personal" name="accountType" value="personal">
+                        <label for="personal">Personal</label>
+                    </div>
+                    <div class="checkbox-item">
+                        <input type="radio" id="business" name="accountType" value="business">
+                        <label for="business">Business</label>
+                    </div>
+                    <div class="checkbox-item">
+                        <input type="radio" id="enterprise" name="accountType" value="enterprise">
+                        <label for="enterprise">Enterprise</label>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="action-buttons">
+                <button type="submit">Submit Form</button>
+                <button type="reset" class="btn-secondary">Reset</button>
+            </div>
+        </form>
+    </div>
+
+    <div class="container">
+        <h2>🎯 Action Test Area</h2>
+        <div class="test-area">
+            <div class="action-buttons">
+                <button onclick="showAlert()">Show Alert</button>
+                <button onclick="changeStatus('Button clicked!')" class="btn-secondary">Change Status</button>
+                <button onclick="toggleVisibility()">Toggle Visibility</button>
+                <button onclick="addListItem()">Add Item</button>
+                <button onclick="clearList()">Clear List</button>
+            </div>
+            
+            <div id="dynamicContent" style="margin-top: 20px;">
+                <ul id="itemList">
+                    <li>Sample Item 1</li>
+                    <li>Sample Item 2</li>
+                </ul>
+            </div>
+            
+            <div id="hiddenContent" style="margin-top: 20px; padding: 15px; background: rgba(255,255,255,0.1); border-radius: 8px;">
+                This content can be toggled!
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <h2>🔗 Navigation Test</h2>
+        <div class="action-buttons">
+            <a href="#section1" onclick="scrollToSection('section1')">Go to Section 1</a>
+            <a href="#section2" onclick="scrollToSection('section2')">Go to Section 2</a>
+            <a href="https://example.com" target="_blank">External Link</a>
+        </div>
+    </div>
+
+    <div class="container" id="section1">
+        <h2>📊 Section 1</h2>
+        <p>This is section 1 for navigation testing. You can scroll here by clicking the navigation links above.</p>
+        <button onclick="changeStatus('Section 1 button clicked!')">Section 1 Action</button>
+    </div>
+
+    <div class="container" id="section2">
+        <h2>📈 Section 2</h2>
+        <p>This is section 2 for navigation testing. Perfect for testing scroll and click actions.</p>
+        <button onclick="changeStatus('Section 2 button clicked!')">Section 2 Action</button>
+    </div>
+
+    <script>
+        let itemCounter = 3;
+
+        function showAlert() {
+            alert('This is a test alert! TestBuilder should capture this action.');
+            changeStatus('Alert shown!');
+        }
+
+        function changeStatus(message) {
+            const status = document.getElementById('status');
+            status.textContent = message;
+            status.style.background = 'rgba(0, 255, 0, 0.3)';
+            
+            setTimeout(() => {
+                status.style.background = 'rgba(0, 255, 0, 0.2)';
+            }, 1000);
+        }
+
+        function toggleVisibility() {
+            const hiddenContent = document.getElementById('hiddenContent');
+            if (hiddenContent.style.display === 'none') {
+                hiddenContent.style.display = 'block';
+                changeStatus('Content shown!');
+            } else {
+                hiddenContent.style.display = 'none';
+                changeStatus('Content hidden!');
+            }
+        }
+
+        function addListItem() {
+            const list = document.getElementById('itemList');
+            const newItem = document.createElement('li');
+            newItem.textContent = `Dynamic Item ${itemCounter}`;
+            list.appendChild(newItem);
+            itemCounter++;
+            changeStatus(`Item ${itemCounter - 1} added!`);
+        }
+
+        function clearList() {
+            const list = document.getElementById('itemList');
+            list.innerHTML = '';
+            itemCounter = 1;
+            changeStatus('List cleared!');
+        }
+
+        function scrollToSection(sectionId) {
+            const section = document.getElementById(sectionId);
+            section.scrollIntoView({ behavior: 'smooth' });
+            changeStatus(`Scrolled to ${sectionId}!`);
+        }
+
+        // Form submission handler
+        document.getElementById('testForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            changeStatus('Form submitted successfully! (prevented default)');
+        });
+
+        // Form reset handler
+        document.getElementById('testForm').addEventListener('reset', function(e) {
+            setTimeout(() => {
+                changeStatus('Form reset!');
+            }, 100);
+        });
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            changeStatus('Test page loaded! Start recording to capture actions. 🎬');
+        });
+    </script>
+</body>
+</html>
