@@ -1,0 +1,47 @@
+{
+  "name": "TestBuilder Simple Start",
+  "active": false,
+  "nodes": [
+    {
+      "parameters": {
+        "path": "/webhook/action-capture",
+        "options": {},
+        "responseMode": "responseNode",
+        "responseData": "firstEntryJson"
+      },
+      "name": "Action Capture",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 200],
+      "id": "action-webhook"
+    },
+    {
+      "parameters": {
+        "functionCode": "// Simple action capture response\nconst action = $json;\n\nconsole.log('Action received:', JSON.stringify(action, null, 2));\n\n// Return simple success response\nreturn [{\n  json: {\n    success: true,\n    message: 'Action captured successfully',\n    timestamp: new Date().toISOString(),\n    received: action\n  }\n}];"
+      },
+      "name": "Process & Response",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [460, 200],
+      "id": "process-response"
+    }
+  ],
+  "connections": {
+    "Action Capture": {
+      "main": [
+        [
+          {
+            "node": "Process & Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "saveManualExecutions": true
+  },
+  "staticData": {}
+}

@@ -1,0 +1,121 @@
+{
+  "name": "TestBuilder Simple Two-Phase",
+  "active": false,
+  "nodes": [
+    {
+      "parameters": {
+        "path": "/webhook/action-capture",
+        "options": {}
+      },
+      "name": "Action Capture Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 200],
+      "id": "webhook-capture",
+      "webhookId": "action-capture-simple"
+    },
+    {
+      "parameters": {
+        "functionCode": "// Process individual action capture\nconst action = $json;\n\n// Validate action data\nif (!action.type && !action.action) {\n  return [{\n    json: {\n      success: false,\n      error: 'Invalid action data - missing type or action field',\n      received: action\n    }\n  }];\n}\n\n// Process and store action\nconst processedAction = {\n  sessionId: action.sessionId || `session_${Date.now()}`,\n  actionType: action.type || action.action || 'unknown',\n  element: action.element || '',\n  value: action.value || '',\n  url: action.url || '',\n  timestamp: action.timestamp || new Date().toISOString(),\n  processedAt: new Date().toISOString()\n};\n\nconsole.log('✅ Action captured successfully:', processedAction.actionType);\n\nreturn [{json: processedAction}];"
+      },
+      "name": "Process Action",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [460, 200],
+      "id": "process-action"
+    },
+    {
+      "parameters": {
+        "functionCode": "// Return success response for action capture\nreturn [{\n  json: {\n    success: true,\n    message: 'Action captured successfully in TestBuilder',\n    sessionId: $json.sessionId,\n    actionType: $json.actionType,\n    timestamp: new Date().toISOString(),\n    status: 'stored'\n  }\n}];"
+      },
+      "name": "Capture Response",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [680, 200],
+      "id": "capture-response"
+    },
+    {
+      "parameters": {
+        "path": "/webhook/generate-tests",
+        "options": {}
+      },
+      "name": "Generate Tests Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 400],
+      "id": "webhook-generate",
+      "webhookId": "generate-tests-simple"
+    },
+    {
+      "parameters": {
+        "functionCode": "// Process test generation request\nconst request = $json;\n\n// Validate session ID\nif (!request.sessionId) {\n  return [{\n    json: {\n      success: false,\n      error: 'Session ID required for test generation'\n    }\n  }];\n}\n\n// Prepare mock test generation (without AI for now)\nconst generationRequest = {\n  sessionId: request.sessionId,\n  actions: request.actions || [],\n  pageTitle: request.pageTitle || 'Test Page',\n  pageUrl: request.pageUrl || 'http://example.com',\n  requestedAt: new Date().toISOString()\n};\n\nconsole.log('🔄 Preparing test generation for session:', request.sessionId);\n\nreturn [{json: generationRequest}];"
+      },
+      "name": "Prepare Generation",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [460, 400],
+      "id": "prepare-generation"
+    },
+    {
+      "parameters": {
+        "functionCode": "// Generate mock test code (without AI integration for testing)\nconst data = $json;\nconst actions = data.actions || [];\n\n// Create mock test code\nconst mockTestCode = `\n// GENERATED TEST CODE\n// Session: ${data.sessionId}\n// Page: ${data.pageTitle}\n// URL: ${data.pageUrl}\n// Actions captured: ${actions.length}\n\n// Selenium WebDriver Test (Python)\nfrom selenium import webdriver\nfrom selenium.webdriver.common.by import By\nfrom selenium.webdriver.support.ui import WebDriverWait\nfrom selenium.webdriver.support import expected_conditions as EC\n\ndef test_recorded_actions():\n    driver = webdriver.Chrome()\n    driver.get(\"${data.pageUrl}\")\n    \n    # Generated actions:\n${actions.map((action, i) => `    # Action ${i + 1}: ${action.type || 'unknown'} on ${action.element || 'element'}`).join('\\n')}\n    \n    driver.quit()\n\n// Playwright Test (JavaScript)\nconst { test, expect } = require('@playwright/test');\n\ntest('recorded actions test', async ({ page }) => {\n  await page.goto('${data.pageUrl}');\n  \n  // Generated actions:\n${actions.map((action, i) => `  // Action ${i + 1}: ${action.type || 'unknown'} on ${action.element || 'element'}`).join('\\n')}\n});\n`;\n\nconst finalResponse = {\n  success: true,\n  sessionId: data.sessionId,\n  generatedTests: mockTestCode,\n  generatedAt: new Date().toISOString(),\n  actionCount: actions.length,\n  note: 'Mock test generation - AI integration pending'\n};\n\nconsole.log('✅ Tests generated for session:', data.sessionId);\n\nreturn [{json: finalResponse}];"
+      },
+      "name": "Generate Mock Tests",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [680, 400],
+      "id": "generate-tests"
+    }
+  ],
+  "connections": {
+    "Action Capture Webhook": {
+      "main": [
+        [
+          {
+            "node": "Process Action",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process Action": {
+      "main": [
+        [
+          {
+            "node": "Capture Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Tests Webhook": {
+      "main": [
+        [
+          {
+            "node": "Prepare Generation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Generation": {
+      "main": [
+        [
+          {
+            "node": "Generate Mock Tests",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "saveManualExecutions": true
+  },
+  "staticData": {}
+}

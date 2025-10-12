@@ -1,0 +1,45 @@
+{
+  "name": "Test Basic Webhook",
+  "active": false,
+  "nodes": [
+    {
+      "parameters": {
+        "path": "/webhook/test",
+        "options": {}
+      },
+      "name": "Test Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 200],
+      "id": "test-webhook"
+    },
+    {
+      "parameters": {
+        "functionCode": "return [{json: {success: true, message: 'Webhook working!', timestamp: new Date().toISOString(), received: $json}}];"
+      },
+      "name": "Test Response",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [460, 200],
+      "id": "test-response"
+    }
+  ],
+  "connections": {
+    "Test Webhook": {
+      "main": [
+        [
+          {
+            "node": "Test Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "saveManualExecutions": true
+  },
+  "staticData": {}
+}

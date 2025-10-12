@@ -1,0 +1,165 @@
+{
+  "name": "TestBuilder MCP Native Flow",
+  "active": false,
+  "nodes": [
+    {
+      "parameters": {
+        "path": "capture-user-steps",
+        "httpMethod": "POST",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "name": "User Steps Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 200],
+      "id": "steps-webhook"
+    },
+    {
+      "parameters": {
+        "functionCode": "// Procesar y validar datos de entrada del usuario\nconst inputData = $json;\n\n// Validar estructura de datos\nif (!inputData || typeof inputData !== 'object') {\n  return [{\n    json: {\n      success: false,\n      error: 'Invalid input data structure',\n      received: inputData\n    }\n  }];\n}\n\n// Extraer información de la acción del usuario\nconst userAction = {\n  // Datos principales\n  actionType: inputData.action || inputData.type || 'unknown_action',\n  targetElement: inputData.element || inputData.target || 'unknown_element',\n  actionValue: inputData.value || inputData.text || '',\n  \n  // Contexto de la página\n  pageUrl: inputData.url || inputData.pageUrl || window.location?.href || '',\n  pageTitle: inputData.title || inputData.pageTitle || 'Unknown Page',\n  \n  // Metadatos de sesión\n  sessionId: inputData.sessionId || `session_${Date.now()}`,\n  timestamp: inputData.timestamp || new Date().toISOString(),\n  \n  // Información técnica\n  selector: inputData.selector || inputData.css || '',\n  xpath: inputData.xpath || '',\n  coordinates: inputData.coordinates || { x: 0, y: 0 },\n  \n  // Contexto del navegador\n  userAgent: inputData.userAgent || navigator?.userAgent || 'Unknown',\n  viewport: inputData.viewport || { width: 0, height: 0 }\n};\n\n// Crear estructura de datos para MCP\nconst mcpReadyData = {\n  // Metadatos del workflow\n  workflowType: 'user_action_capture',\n  timestamp: new Date().toISOString(),\n  \n  // Datos de la acción procesada\n  userAction: userAction,\n  \n  // Contexto para MCP\n  mcpContext: {\n    task: 'capture_user_interaction',\n    domain: new URL(userAction.pageUrl || 'http://localhost').hostname,\n    actionSequence: 1, // Se incrementará en futuras implementaciones\n    sessionMetadata: {\n      id: userAction.sessionId,\n      startTime: userAction.timestamp,\n      currentAction: userAction.actionType\n    }\n  },\n  \n  // Información de respuesta\n  responseInfo: {\n    success: true,\n    message: `✅ Paso capturado: ${userAction.actionType.toUpperCase()} en ${userAction.targetElement}`,\n    stepNumber: 1,\n    readyForMCP: true\n  }\n};\n\n// Log detallado para debugging\nconsole.log('🎯 USER ACTION CAPTURED:', {\n  action: userAction.actionType,\n  element: userAction.targetElement,\n  page: userAction.pageTitle,\n  session: userAction.sessionId,\n  timestamp: userAction.timestamp\n});\n\n// Preparar datos para el siguiente nodo MCP\nreturn [{\n  json: mcpReadyData\n}];"
+      },
+      "name": "Process User Action",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [460, 200],
+      "id": "process-action"
+    },
+    {
+      "parameters": {
+        "server": "n8n-mcp-server",
+        "tool": "search_nodes",
+        "arguments": {
+          "query": "webhook user interaction capture",
+          "limit": 5
+        }
+      },
+      "name": "MCP Search Tools",
+      "type": "n8n-nodes-langchain.mcp",
+      "typeVersion": 1,
+      "position": [680, 200],
+      "id": "mcp-search"
+    },
+    {
+      "parameters": {
+        "functionCode": "// Combinar datos del usuario con información de MCP\nconst userData = $input.first().json;\nconst mcpResult = $input.all()[1]?.json || { tools: [] };\n\n// Crear respuesta completa con información MCP\nconst completeResponse = {\n  // Estado de la captura\n  capture: {\n    success: true,\n    message: userData.responseInfo.message,\n    timestamp: userData.timestamp\n  },\n  \n  // Detalles de la acción del usuario\n  userStep: {\n    action: userData.userAction.actionType,\n    element: userData.userAction.targetElement,\n    value: userData.userAction.actionValue,\n    page: {\n      title: userData.userAction.pageTitle,\n      url: userData.userAction.pageUrl\n    },\n    technical: {\n      selector: userData.userAction.selector,\n      coordinates: userData.userAction.coordinates,\n      viewport: userData.userAction.viewport\n    }\n  },\n  \n  // Información de la sesión\n  session: {\n    id: userData.userAction.sessionId,\n    stepNumber: userData.responseInfo.stepNumber,\n    domain: userData.mcpContext.domain\n  },\n  \n  // Resultados de MCP\n  mcpAnalysis: {\n    toolsFound: mcpResult.tools?.length || 0,\n    recommendations: mcpResult.tools || [],\n    mcpProcessed: true,\n    serverConnected: mcpResult.server_status || 'unknown'\n  },\n  \n  // Próximos pasos\n  nextActions: {\n    continueCapture: 'Realizar más acciones en la página',\n    generateTests: 'Usar webhook /generate-tests-mcp cuando termine',\n    viewSession: `Revisar sesión ${userData.userAction.sessionId}`\n  },\n  \n  // Metadatos finales\n  metadata: {\n    processedAt: new Date().toISOString(),\n    workflowVersion: '2.0-mcp-native',\n    mcpIntegration: 'active',\n    dataValidated: true\n  }\n};\n\n// Log de confirmación\nconsole.log('🚀 MCP WORKFLOW COMPLETED:', {\n  session: userData.userAction.sessionId,\n  action: userData.userAction.actionType,\n  mcpTools: mcpResult.tools?.length || 0,\n  success: true\n});\n\nreturn [{json: completeResponse}];"
+      },
+      "name": "Combine Results",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [900, 200],
+      "id": "combine-results"
+    },
+    {
+      "parameters": {
+        "path": "generate-tests-mcp",
+        "httpMethod": "POST",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "name": "Generate Tests MCP",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 400],
+      "id": "generate-webhook"
+    },
+    {
+      "parameters": {
+        "server": "n8n-mcp-server",
+        "tool": "generate_workflow",
+        "arguments": {
+          "description": "Generate test automation code based on captured user actions",
+          "nodes": ["webhook", "function", "code"],
+          "useCase": "test_generation"
+        }
+      },
+      "name": "MCP Generate Tests",
+      "type": "n8n-nodes-langchain.mcp",
+      "typeVersion": 1,
+      "position": [460, 400],
+      "id": "mcp-generate"
+    },
+    {
+      "parameters": {
+        "functionCode": "// Procesar resultado de generación MCP y crear tests finales\nconst generationRequest = $input.first().json;\nconst mcpGeneration = $input.all()[1]?.json || {};\n\n// Extraer datos de la sesión\nconst sessionData = {\n  sessionId: generationRequest.sessionId || 'unknown',\n  actions: generationRequest.actions || [],\n  pageTitle: generationRequest.pageTitle || 'Test Page',\n  pageUrl: generationRequest.pageUrl || '',\n  userAgent: generationRequest.userAgent || ''\n};\n\n// Crear código de test usando MCP + datos de sesión\nconst testCode = {\n  // Selenium WebDriver (JavaScript)\n  selenium: {\n    framework: 'selenium-webdriver',\n    language: 'javascript',\n    code: `\n// Generated with n8n MCP Integration\n// Session: ${sessionData.sessionId}\n// Page: ${sessionData.pageTitle}\n\nconst { Builder, By, until, Key } = require('selenium-webdriver');\nconst assert = require('assert');\n\ndescribe('${sessionData.pageTitle} - Automated Test', () => {\n  let driver;\n  \n  beforeEach(async () => {\n    driver = await new Builder()\n      .forBrowser('chrome')\n      .build();\n  });\n  \n  afterEach(async () => {\n    if (driver) {\n      await driver.quit();\n    }\n  });\n  \n  it('should execute captured user journey', async () => {\n    // Navigate to target page\n    await driver.get('${sessionData.pageUrl}');\n    \n    // Wait for page to load\n    await driver.wait(until.titleContains('${sessionData.pageTitle}'), 10000);\n    \n    // Execute captured actions\n${sessionData.actions.map((action, index) => \n  `    // Step ${index + 1}: ${action.type || 'action'} on ${action.element || 'element'}\n    // TODO: Implement ${action.type} for ${action.element}`\n).join('\\n')}\n    \n    // Verify final state\n    const title = await driver.getTitle();\n    assert(title.includes('${sessionData.pageTitle}'), 'Page title should contain expected text');\n  });\n});\n`\n  },\n  \n  // Playwright (JavaScript)\n  playwright: {\n    framework: 'playwright',\n    language: 'javascript', \n    code: `\n// Generated with n8n MCP Integration\n// Session: ${sessionData.sessionId}\n\nconst { test, expect } = require('@playwright/test');\n\ntest.describe('${sessionData.pageTitle} - User Journey', () => {\n  test('should replicate captured user actions', async ({ page }) => {\n    // Navigate to page\n    await page.goto('${sessionData.pageUrl}');\n    \n    // Wait for page load\n    await expect(page).toHaveTitle(/${sessionData.pageTitle}/);\n    \n    // Execute captured user actions\n${sessionData.actions.map((action, index) => \n  `    // Step ${index + 1}: ${action.type || 'action'}\n    // await page.click('${action.selector || action.element}');`\n).join('\\n')}\n    \n    // Final verification\n    await expect(page).toHaveURL(/${sessionData.pageUrl.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&')}/);\n  });\n});\n`\n  }\n};\n\n// Respuesta final con tests generados\nconst finalResponse = {\n  success: true,\n  message: '🎉 Tests generados exitosamente con MCP',\n  \n  // Información de la sesión\n  session: {\n    id: sessionData.sessionId,\n    actionCount: sessionData.actions.length,\n    page: sessionData.pageTitle,\n    url: sessionData.pageUrl\n  },\n  \n  // Tests generados\n  generatedTests: testCode,\n  \n  // Información MCP\n  mcpProcessing: {\n    serverUsed: 'n8n-mcp-server',\n    toolsApplied: ['generate_workflow'],\n    processingTime: new Date().toISOString(),\n    mcpResult: mcpGeneration\n  },\n  \n  // Metadatos\n  metadata: {\n    generatedAt: new Date().toISOString(),\n    frameworks: ['selenium', 'playwright'],\n    language: 'javascript',\n    mcpIntegrated: true,\n    version: '2.0-mcp-native'\n  }\n};\n\nconsole.log('🎯 TESTS GENERATED WITH MCP:', {\n  session: sessionData.sessionId,\n  actionCount: sessionData.actions.length,\n  frameworks: ['selenium', 'playwright'],\n  mcpUsed: true\n});\n\nreturn [{json: finalResponse}];"
+      },
+      "name": "Finalize Tests",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [680, 400],
+      "id": "finalize-tests"
+    }
+  ],
+  "connections": {
+    "User Steps Webhook": {
+      "main": [
+        [
+          {
+            "node": "Process User Action",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process User Action": {
+      "main": [
+        [
+          {
+            "node": "MCP Search Tools",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Combine Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "MCP Search Tools": {
+      "main": [
+        [
+          {
+            "node": "Combine Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Tests MCP": {
+      "main": [
+        [
+          {
+            "node": "MCP Generate Tests",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Finalize Tests",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "MCP Generate Tests": {
+      "main": [
+        [
+          {
+            "node": "Finalize Tests",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "saveManualExecutions": true
+  },
+  "staticData": {}
+}

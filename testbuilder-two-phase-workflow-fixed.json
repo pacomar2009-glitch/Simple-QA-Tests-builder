@@ -1,5 +1,5 @@
 {
-  "name": "TestBuilder Two-Phase Workflow",
+  "name": "TestBuilder Two-Phase Workflow FIXED",
   "active": true,
   "nodes": [
     {
@@ -15,7 +15,7 @@
     },
     {
       "parameters": {
-        "functionCode": "// FASE 1: Captura en tiempo real de acciones individuales\nconst action = $json.action || {};\nconst sessionData = $json.sessionData || {};\nconst sessionId = sessionData.sessionId || $json.sessionId || `session_${Date.now()}`;\n\n// Validar que tenemos una acción válida\nif (!action.type || !action.timestamp) {\n  return [{\n    json: {\n      success: false,\n      error: 'Invalid action data',\n      received: $json\n    }\n  }];\n}\n\n// Preparar datos para almacenamiento\nconst actionData = {\n  sessionId: sessionId,\n  action: {\n    ...action,\n    capturedAt: new Date().toISOString(),\n    url: sessionData.url || '',\n    title: sessionData.title || ''\n  },\n  metadata: {\n    userAgent: $json.userAgent || '',\n    timestamp: Date.now()\n  }\n};\n\nconsole.log('📝 Action captured for session:', sessionId, 'Action:', action.type);\n\nreturn [{json: actionData}];"
+        "functionCode": "// FASE 1: Captura en tiempo real de acciones individuales\nconst action = $json.action || $json;\nconst sessionId = $json.sessionId || `session_${Date.now()}`;\n\n// Validar que tenemos una acción válida\nif (!action.type || !action.timestamp) {\n  return [{\n    json: {\n      success: false,\n      error: 'Invalid action data',\n      received: $json\n    }\n  }];\n}\n\n// Preparar datos para almacenamiento\nconst actionData = {\n  sessionId: sessionId,\n  action: {\n    ...action,\n    capturedAt: new Date().toISOString(),\n    url: $json.url || '',\n    title: $json.title || ''\n  },\n  metadata: {\n    userAgent: $json.userAgent || '',\n    timestamp: Date.now()\n  }\n};\n\nconsole.log('📝 Action captured for session:', sessionId, 'Action:', action.type);\n\nreturn [{json: actionData}];"
       },
       "name": "Process Individual Action",
       "type": "n8n-nodes-base.function",
@@ -35,7 +35,7 @@
     },
     {
       "parameters": {
-        "functionCode": "// Respuesta para la fase de captura\nconst response = {\n  success: true,\n  message: 'Action stored successfully',\n  sessionId: $json.sessionId,\n  actionType: $json.action?.type,\n  timestamp: new Date().toISOString()\n};\n\nreturn [{json: response}];"
+        "functionCode": "// Respuesta para la fase de captura\nconst response = {\n  success: true,\n  message: 'Action stored successfully',\n  sessionId: $json.sessionId,\n  actionType: $json.actionType,\n  timestamp: new Date().toISOString()\n};\n\nreturn [{json: response}];"
       },
       "name": "Capture Response",
       "type": "n8n-nodes-base.function",
@@ -66,7 +66,7 @@
     },
     {
       "parameters": {
-        "functionCode": "// SIMULACIÓN DE RECUPERACIÓN DE DATOS (para n8n 1.114.4)\n// En una implementación real, esto consultaría una base de datos\nconst sessionId = $json.sessionId;\n\nconsole.log(`🔍 [STORAGE] Simulating retrieval for session: ${sessionId}`);\n\n// Simular datos recuperados (en producción vendrían de DB)\n// Para propósitos de demo, generar acciones de ejemplo\nconst mockActions = [\n  {\n    type: 'navigate',\n    selector: '',\n    url: 'https://example.com',\n    title: 'Test Page',\n    timestamp: Date.now() - 5000,\n    value: ''\n  },\n  {\n    type: 'click',\n    selector: '#login-button',\n    url: 'https://example.com',\n    title: 'Test Page', \n    timestamp: Date.now() - 4000,\n    value: ''\n  },\n  {\n    type: 'input',\n    selector: '#username',\n    url: 'https://example.com',\n    title: 'Test Page',\n    timestamp: Date.now() - 3000,\n    value: 'testuser'\n  },\n  {\n    type: 'input',\n    selector: '#password',\n    url: 'https://example.com', \n    title: 'Test Page',\n    timestamp: Date.now() - 2000,\n    value: 'password123'\n  },\n  {\n    type: 'submit',\n    selector: '#login-form',\n    url: 'https://example.com',\n    title: 'Test Page',\n    timestamp: Date.now() - 1000,\n    value: ''\n  }\n];\n\nreturn [{\n  json: {\n    success: true,\n    sessionId: sessionId,\n    actionsRetrieved: mockActions.length,\n    value: mockActions.map(action => JSON.stringify({action})).join('\\n'),\n    note: 'Mock data for n8n compatibility - in production this would query real storage'\n  }\n}];"
+        "functionCode": "// SIMULACIÓN DE RECUPERACIÓN DE DATOS (para n8n 1.114.4)\n// En una implementación real, esto consultaría una base de datos\nconst sessionId = $json.sessionId;\n\nconsole.log(`🔍 [STORAGE] Simulating retrieval for session: ${sessionId}`);\n\n// Simular datos recuperados (en producción vendrían de DB)\n// Para propósitos de demo, generar acciones de ejemplo basadas en sessionId\nconst mockActions = [\n  {\n    type: 'navigate',\n    selector: '',\n    url: 'https://example.com',\n    title: 'Test Page',\n    timestamp: Date.now() - 5000,\n    value: ''\n  },\n  {\n    type: 'click',\n    selector: '#login-button',\n    url: 'https://example.com',\n    title: 'Test Page', \n    timestamp: Date.now() - 4000,\n    value: ''\n  },\n  {\n    type: 'input',\n    selector: '#username',\n    url: 'https://example.com',\n    title: 'Test Page',\n    timestamp: Date.now() - 3000,\n    value: 'testuser'\n  },\n  {\n    type: 'input',\n    selector: '#password',\n    url: 'https://example.com', \n    title: 'Test Page',\n    timestamp: Date.now() - 2000,\n    value: 'password123'\n  },\n  {\n    type: 'submit',\n    selector: '#login-form',\n    url: 'https://example.com',\n    title: 'Test Page',\n    timestamp: Date.now() - 1000,\n    value: ''\n  }\n];\n\nreturn [{\n  json: {\n    success: true,\n    sessionId: sessionId,\n    actionsRetrieved: mockActions.length,\n    actions: mockActions,\n    note: 'Mock data for n8n compatibility - in production this would query real storage'\n  }\n}];"
       },
       "name": "Retrieve Session Actions (Mock)",
       "type": "n8n-nodes-base.function",
@@ -76,7 +76,7 @@
     },
     {
       "parameters": {
-        "functionCode": "// Procesar acciones almacenadas y preparar para IA\nconst sessionId = $('Prepare Test Generation').item.json.sessionId;\nconst rawData = $json.value || '';\n\nif (!rawData || rawData.trim() === '') {\n  return [{\n    json: {\n      success: false,\n      error: 'No actions found for session',\n      sessionId: sessionId\n    }\n  }];\n}\n\n// Parsear las acciones almacenadas (cada línea es un JSON)\nconst actions = [];\nconst lines = rawData.trim().split('\\n');\n\nfor (const line of lines) {\n  if (line.trim()) {\n    try {\n      const actionData = JSON.parse(line);\n      if (actionData.action) {\n        actions.push(actionData.action);\n      }\n    } catch (e) {\n      console.log('Skipping invalid action line:', line);\n    }\n  }\n}\n\n// Validar que tenemos suficientes acciones\nif (actions.length < 2) {\n  return [{\n    json: {\n      success: false,\n      error: 'Insufficient actions for test generation',\n      actionsFound: actions.length,\n      minimumRequired: 2\n    }\n  }];\n}\n\n// Ordenar acciones por timestamp\nactions.sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));\n\n// Enriquecer con metadata\nconst enrichedData = {\n  sessionId: sessionId,\n  totalActions: actions.length,\n  processedAt: new Date().toISOString(),\n  sourceUrl: actions[0]?.url || '',\n  pageTitle: actions[0]?.title || '',\n  actions: actions.map((action, index) => ({\n    ...action,\n    actionIndex: index + 1,\n    relativeTime: action.timestamp ? action.timestamp - actions[0].timestamp : 0\n  }))\n};\n\nconsole.log('✅ Processed', actions.length, 'actions for generation');\n\nreturn [{json: enrichedData}];"
+        "functionCode": "// Procesar acciones almacenadas y preparar para IA\nconst sessionId = $('Prepare Test Generation').item.json.sessionId;\nconst actionsData = $json.actions || [];\n\nif (!actionsData || actionsData.length === 0) {\n  return [{\n    json: {\n      success: false,\n      error: 'No actions found for session',\n      sessionId: sessionId\n    }\n  }];\n}\n\n// Validar que tenemos suficientes acciones\nif (actionsData.length < 2) {\n  return [{\n    json: {\n      success: false,\n      error: 'Insufficient actions for test generation',\n      actionsFound: actionsData.length,\n      minimumRequired: 2\n    }\n  }];\n}\n\n// Ordenar acciones por timestamp\nconst sortedActions = actionsData.sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));\n\n// Enriquecer con metadata\nconst enrichedData = {\n  sessionId: sessionId,\n  totalActions: sortedActions.length,\n  processedAt: new Date().toISOString(),\n  sourceUrl: sortedActions[0]?.url || '',\n  pageTitle: sortedActions[0]?.title || '',\n  actions: sortedActions.map((action, index) => ({\n    ...action,\n    actionIndex: index + 1,\n    relativeTime: action.timestamp ? action.timestamp - sortedActions[0].timestamp : 0\n  }))\n};\n\nconsole.log('✅ Processed', sortedActions.length, 'actions for generation');\n\nreturn [{json: enrichedData}];"
       },
       "name": "Process Session Actions",
       "type": "n8n-nodes-base.function",
@@ -203,14 +203,14 @@
       "main": [
         [
           {
-            "node": "Store Action in Data Store",
+            "node": "Store Action (Temporary)",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Store Action in Data Store": {
+    "Store Action (Temporary)": {
       "main": [
         [
           {
@@ -236,14 +236,14 @@
       "main": [
         [
           {
-            "node": "Retrieve Session Actions",
+            "node": "Retrieve Session Actions (Mock)",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Retrieve Session Actions": {
+    "Retrieve Session Actions (Mock)": {
       "main": [
         [
           {
@@ -359,10 +359,10 @@
       "createdAt": "2025-10-12T00:00:00.000Z", 
       "updatedAt": "2025-10-12T00:00:00.000Z",
       "id": "2",
-      "name": "TwoPhase"
+      "name": "Analytics"
     }
   ],
   "triggerCount": 2,
   "updatedAt": "2025-10-12T00:00:00.000Z",
-  "versionId": "2"
+  "versionId": "1"
 }

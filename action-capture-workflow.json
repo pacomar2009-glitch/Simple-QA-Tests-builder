@@ -1,0 +1,48 @@
+{
+  "name": "TestBuilder Action Capture",
+  "active": false,
+  "nodes": [
+    {
+      "parameters": {
+        "path": "test-capture",
+        "httpMethod": "POST",
+        "responseMode": "responseNode",
+        "responseData": "firstEntryJson",
+        "options": {}
+      },
+      "name": "Action Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 200],
+      "id": "action-webhook"
+    },
+    {
+      "parameters": {
+        "functionCode": "// CAPTURA Y PROCESAMIENTO DE ACCIONES DE USUARIO\nconst actionData = $json;\n\n// Extraer información de la acción\nconst action = {\n  type: actionData.action || actionData.type || 'unknown',\n  element: actionData.element || '',\n  value: actionData.value || '',\n  timestamp: actionData.timestamp || new Date().toISOString(),\n  sessionId: actionData.sessionId || `session_${Date.now()}`,\n  url: actionData.url || '',\n  title: actionData.title || '',\n  selector: actionData.selector || '',\n  coordinates: actionData.coordinates || null\n};\n\n// Crear respuesta detallada con información de los pasos capturados\nconst response = {\n  success: true,\n  message: `✅ Acción capturada exitosamente: ${action.type}`,\n  capturedAction: {\n    step: action.type,\n    target: action.element,\n    value: action.value,\n    page: action.title,\n    url: action.url,\n    timestamp: action.timestamp,\n    sessionId: action.sessionId\n  },\n  metadata: {\n    processingTime: new Date().toISOString(),\n    actionCount: 1, // Se incrementará en implementaciones futuras\n    status: 'captured_and_stored'\n  },\n  nextSteps: {\n    continue: 'Continúe realizando acciones en la página',\n    generate: 'Use el botón Generate with AI cuando termine'\n  }\n};\n\n// Log detallado para monitoreo\nconsole.log('🎯 ACCIÓN CAPTURADA:', {\n  tipo: action.type,\n  elemento: action.element,\n  valor: action.value,\n  página: action.title,\n  sesión: action.sessionId\n});\n\nreturn [{json: response}];"
+      },
+      "name": "Process & Log Action",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [460, 200],
+      "id": "process-action"
+    }
+  ],
+  "connections": {
+    "Action Webhook": {
+      "main": [
+        [
+          {
+            "node": "Process & Log Action",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "saveManualExecutions": true
+  },
+  "staticData": {}
+}

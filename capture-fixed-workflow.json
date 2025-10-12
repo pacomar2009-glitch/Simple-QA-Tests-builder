@@ -1,0 +1,48 @@
+{
+  "name": "TestBuilder Capture FIXED",
+  "active": false,
+  "nodes": [
+    {
+      "parameters": {
+        "path": "action-capture-fixed",
+        "httpMethod": "POST",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "name": "Capture Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 200],
+      "id": "capture-webhook",
+      "webhookId": "action-capture-fixed"
+    },
+    {
+      "parameters": {
+        "functionCode": "// ✅ PROCESAMIENTO DE ACCIONES DE USUARIO\nconst received = $json;\n\n// Información detallada de la acción capturada\nconst actionInfo = {\n  // Datos principales de la acción\n  actionType: received.action || received.type || 'unknown',\n  element: received.element || 'elemento no especificado',\n  value: received.value || '',\n  \n  // Contexto de la página\n  pageUrl: received.url || window.location?.href || 'URL no disponible',\n  pageTitle: received.title || 'Título no disponible',\n  \n  // Información de sesión\n  sessionId: received.sessionId || `session_${Date.now()}`,\n  timestamp: received.timestamp || new Date().toISOString(),\n  \n  // Metadatos técnicos\n  userAgent: received.userAgent || 'No disponible',\n  selector: received.selector || '',\n  coordinates: received.coordinates || null\n};\n\n// Crear respuesta detallada con información visible\nconst detailedResponse = {\n  success: true,\n  message: `🎯 PASO CAPTURADO: ${actionInfo.actionType.toUpperCase()}`,\n  \n  // Información del paso capturado\n  stepDetails: {\n    action: actionInfo.actionType,\n    target: actionInfo.element,\n    value: actionInfo.value,\n    page: actionInfo.pageTitle,\n    url: actionInfo.pageUrl,\n    when: actionInfo.timestamp\n  },\n  \n  // Información de la sesión\n  sessionInfo: {\n    sessionId: actionInfo.sessionId,\n    stepNumber: 1, // Se incrementará en versiones futuras\n    totalSteps: 1  // Se actualizará dinámicamente\n  },\n  \n  // Estado del workflow\n  status: {\n    captured: true,\n    stored: true,\n    readyForNextStep: true,\n    message: 'Continúe con más acciones o genere tests'\n  },\n  \n  // Log para debugging\n  debug: {\n    receivedData: received,\n    processedAt: new Date().toISOString(),\n    nodeId: 'capture-webhook'\n  }\n};\n\n// Console log detallado para monitoreo\nconsole.log('🚀 ACCIÓN PROCESADA:', {\n  tipo: actionInfo.actionType,\n  elemento: actionInfo.element,\n  página: actionInfo.pageTitle,\n  sesión: actionInfo.sessionId,\n  timestamp: actionInfo.timestamp\n});\n\n// Retornar respuesta estructurada\nreturn [{json: detailedResponse}];"
+      },
+      "name": "Show Action Details",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [460, 200],
+      "id": "show-details"
+    }
+  ],
+  "connections": {
+    "Capture Webhook": {
+      "main": [
+        [
+          {
+            "node": "Show Action Details",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "saveManualExecutions": true
+  },
+  "staticData": {}
+}

@@ -1,0 +1,47 @@
+{
+  "name": "TestBuilder Basic Webhook",
+  "active": false,
+  "nodes": [
+    {
+      "parameters": {
+        "path": "test-capture",
+        "httpMethod": "POST",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "name": "Basic Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 200],
+      "id": "basic-webhook"
+    },
+    {
+      "parameters": {
+        "functionCode": "// Log received data\nconsole.log('Webhook called with data:', JSON.stringify($json, null, 2));\n\n// Return simple response\nreturn [{\n  json: {\n    success: true,\n    message: 'Webhook is working!',\n    timestamp: new Date().toISOString(),\n    receivedData: $json\n  }\n}];"
+      },
+      "name": "Simple Response",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [460, 200],
+      "id": "simple-response"
+    }
+  ],
+  "connections": {
+    "Basic Webhook": {
+      "main": [
+        [
+          {
+            "node": "Simple Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "saveManualExecutions": true
+  },
+  "staticData": {}
+}

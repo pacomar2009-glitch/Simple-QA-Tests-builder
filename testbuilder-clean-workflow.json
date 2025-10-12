@@ -1,0 +1,172 @@
+{
+  "name": "TestBuilder Clean Two-Phase",
+  "active": false,
+  "nodes": [
+    {
+      "parameters": {
+        "path": "/webhook/action-capture",
+        "options": {}
+      },
+      "name": "Action Capture Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 200],
+      "id": "webhook-capture",
+      "webhookId": "action-capture-clean"
+    },
+    {
+      "parameters": {
+        "functionCode": "// Process individual action capture\nconst action = $json;\n\n// Validate action data\nif (!action.type || !action.timestamp) {\n  return [{\n    json: {\n      success: false,\n      error: 'Invalid action data',\n      received: action\n    }\n  }];\n}\n\n// Process and store action\nconst processedAction = {\n  sessionId: action.sessionId || `session_${Date.now()}`,\n  actionType: action.type,\n  element: action.element || '',\n  value: action.value || '',\n  url: action.url || '',\n  timestamp: action.timestamp,\n  processedAt: new Date().toISOString()\n};\n\nconsole.log('Action captured:', processedAction.actionType);\n\nreturn [{json: processedAction}];"
+      },
+      "name": "Process Action",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [460, 200],
+      "id": "process-action"
+    },
+    {
+      "parameters": {
+        "functionCode": "// Return success response for action capture\nreturn [{\n  json: {\n    success: true,\n    message: 'Action captured successfully',\n    sessionId: $json.sessionId,\n    actionType: $json.actionType,\n    timestamp: new Date().toISOString()\n  }\n}];"
+      },
+      "name": "Capture Response",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [680, 200],
+      "id": "capture-response"
+    },
+    {
+      "parameters": {
+        "path": "/webhook/generate-tests",
+        "options": {}
+      },
+      "name": "Generate Tests Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 400],
+      "id": "webhook-generate",
+      "webhookId": "generate-tests-clean"
+    },
+    {
+      "parameters": {
+        "functionCode": "// Process test generation request\nconst request = $json;\n\n// Validate session ID\nif (!request.sessionId) {\n  return [{\n    json: {\n      success: false,\n      error: 'Session ID required for test generation'\n    }\n  }];\n}\n\n// Prepare data for Gemini\nconst generationRequest = {\n  sessionId: request.sessionId,\n  actions: request.actions || [],\n  pageTitle: request.pageTitle || '',\n  pageUrl: request.pageUrl || '',\n  requestedAt: new Date().toISOString()\n};\n\nconsole.log('Preparing test generation for session:', request.sessionId);\n\nreturn [{json: generationRequest}];"
+      },
+      "name": "Prepare Generation",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [460, 400],
+      "id": "prepare-generation"
+    },
+    {
+      "parameters": {
+        "functionCode": "// Create prompt for Gemini AI\nconst data = $json;\nconst actions = data.actions || [];\n\n// Build comprehensive prompt\nconst prompt = `\nGenerate automated test code based on the following user actions:\n\nPage: ${data.pageTitle || 'Unknown'}\nURL: ${data.pageUrl || 'Unknown'}\nSession: ${data.sessionId}\n\nCaptured Actions:\n${actions.map((action, i) => `${i + 1}. ${action.type}: ${action.element} ${action.value ? '= ' + action.value : ''}`).join('\\n')}\n\nPlease generate:\n1. Selenium WebDriver test (Python)\n2. Playwright test (JavaScript)\n3. Cypress test (JavaScript)\n\nInclude:\n- Page object pattern\n- Assertions and validations\n- Error handling\n- Wait strategies\n- Comments explaining each step\n\nFormat as JSON with sections: selenium, playwright, cypress\n`;\n\nreturn [{\n  json: {\n    prompt: prompt,\n    sessionId: data.sessionId,\n    actionCount: actions.length\n  }\n}];"
+      },
+      "name": "Build AI Prompt",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [680, 400],
+      "id": "build-prompt"
+    },
+    {
+      "parameters": {
+        "resource": "text",
+        "operation": "message",
+        "message": "={{$json.prompt}}",
+        "options": {}
+      },
+      "name": "Gemini AI Generation",
+      "type": "n8n-nodes-base.googleGeminiPaLM",
+      "typeVersion": 1,
+      "position": [900, 400],
+      "id": "gemini-generation",
+      "credentials": {
+        "googleGeminiPaLMApi": {
+          "id": "Or1bEvtzUuju23Sj",
+          "name": "Google Gemini(PaLM) API account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "functionCode": "// Process Gemini response and format final output\nconst geminiResponse = $json.message || $json.text || $json;\nconst sessionId = $input.first().json.sessionId;\n\n// Clean and structure the response\nlet testCode = '';\nif (typeof geminiResponse === 'string') {\n  testCode = geminiResponse;\n} else if (geminiResponse.message) {\n  testCode = geminiResponse.message;\n} else {\n  testCode = JSON.stringify(geminiResponse, null, 2);\n}\n\nconst finalResponse = {\n  success: true,\n  sessionId: sessionId,\n  generatedTests: testCode,\n  generatedAt: new Date().toISOString(),\n  actionCount: $input.first().json.actionCount || 0\n};\n\nconsole.log('Tests generated for session:', sessionId);\n\nreturn [{json: finalResponse}];"
+      },
+      "name": "Format Response",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [1120, 400],
+      "id": "format-response"
+    }
+  ],
+  "connections": {
+    "Action Capture Webhook": {
+      "main": [
+        [
+          {
+            "node": "Process Action",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process Action": {
+      "main": [
+        [
+          {
+            "node": "Capture Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Tests Webhook": {
+      "main": [
+        [
+          {
+            "node": "Prepare Generation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Generation": {
+      "main": [
+        [
+          {
+            "node": "Build AI Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build AI Prompt": {
+      "main": [
+        [
+          {
+            "node": "Gemini AI Generation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gemini AI Generation": {
+      "main": [
+        [
+          {
+            "node": "Format Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "saveManualExecutions": true
+  },
+  "staticData": {}
+}

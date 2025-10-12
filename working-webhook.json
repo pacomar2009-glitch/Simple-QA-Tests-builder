@@ -1,0 +1,26 @@
+{
+  "name": "TestBuilder Working",
+  "active": false,
+  "nodes": [
+    {
+      "parameters": {
+        "path": "test-capture",
+        "httpMethod": "POST",
+        "responseMode": "onReceived",
+        "responseData": "firstEntryJson",
+        "options": {}
+      },
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 200],
+      "id": "webhook-node"
+    }
+  ],
+  "connections": {},
+  "pinData": {},
+  "settings": {
+    "saveManualExecutions": true
+  },
+  "staticData": {}
+}

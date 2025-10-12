@@ -562,7 +562,7 @@ class TestBuilderPro {
       return;
     }
 
-    const n8nActionWebhook = 'http://localhost:5678/webhook/action-capture';
+    const n8nActionWebhook = 'http://localhost:5678/webhook/action-capture-fixed';
     
     try {
       const payload = {
