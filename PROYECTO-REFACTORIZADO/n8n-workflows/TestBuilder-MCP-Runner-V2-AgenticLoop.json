@@ -1,0 +1,188 @@
+{
+  "name": "TestBuilder MCP Runner - v2.0 Agentic Loop",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "/testbuilder/capture-v2",
+        "responseMode": "lastNode",
+        "responseData": "allEntries",
+        "options": {
+          "respondToWebhook": true
+        }
+      },
+      "name": "TestBuilder Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        240,
+        300
+      ],
+      "id": "testbuilder-webhook-v2",
+      "webhookId": "testbuilder-mcp-v2-agentic"
+    },
+    {
+      "parameters": {
+        "functionCode": "// ✅ VALIDACIÓN DE DATOS v2.0\nconst webhookData = $json;\n\nconsole.log('🎯 Webhook v2.0 data received');\n\n// Extraer datos del body\nconst bodyData = webhookData.body || webhookData;\nconst actions = bodyData.actions || [];\nconst metadata = bodyData.metadata || {};\nconst sessionId = bodyData.sessionId || `session-${Date.now()}`;\n\nconsole.log(`📊 Found ${actions.length} actions`);\nconsole.log('📊 Actions:', JSON.stringify(actions, null, 2));\n\n// Validación\nif (!Array.isArray(actions) || actions.length === 0) {\n  console.log('❌ No valid actions found');\n  return [{\n    json: {\n      success: false,\n      error: 'No actions to process',\n      actionsFound: actions.length,\n      timestamp: new Date().toISOString()\n    }\n  }];\n}\n\n// ✅ Datos listos para v2.0 Agentic Loop\nconsole.log(`✅ ${actions.length} actions ready for v2.0 Agentic Loop`);\n\nreturn [{\n  json: {\n    success: true,\n    actions: actions,\n    sessionId: sessionId,\n    metadata: metadata,\n    timestamp: new Date().toISOString()\n  }\n}];"
+      },
+      "name": "Validate Actions",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        440,
+        300
+      ],
+      "id": "validate-actions-v2"
+    },
+    {
+      "parameters": {
+        "functionCode": "// 🤖 CONSTRUIR PAYLOAD v2.0 AGENTIC LOOP\nconst validationResult = $json;\n\n// Verificar si hay error en la validación\nif (!validationResult.success) {\n  console.log('❌ Validation failed');\n  return [{\n    json: {\n      success: false,\n      error: validationResult.error || 'Validation failed',\n      timestamp: new Date().toISOString()\n    }\n  }];\n}\n\nconst actions = validationResult.actions || [];\nconst metadata = validationResult.metadata || {};\n\nconsole.log(`🤖 Building v2.0 Agentic Loop payload for ${actions.length} actions`);\n\n// 🎯 TRADUCIR ACCIONES A OBJETIVO EN LENGUAJE NATURAL\n// Gemini v2.0 trabaja con goals en lenguaje natural, NO con JSON de acciones\n\nlet goal = '';\n\n// Construir el goal desde las acciones capturadas\nif (actions.length > 0) {\n  const firstAction = actions[0];\n  \n  // Determinar el objetivo basado en las acciones\n  if (firstAction.type === 'navigation' || firstAction.type === 'navigate') {\n    goal = `Navega a ${firstAction.url || firstAction.href}`;\n  } else {\n    goal = `Ejecuta las siguientes acciones web: ${actions.map((a, i) => `${i + 1}. ${a.type} ${a.selector || a.url || ''}`).join(', ')}`;\n  }\n  \n  // Agregar acciones subsecuentes\n  for (let i = 1; i < actions.length; i++) {\n    const action = actions[i];\n    \n    if (action.type === 'click' || action.type === 'button_click') {\n      goal += ', luego haz click en el elemento ' + (action.selector || action.element);\n    } else if (action.type === 'input' || action.type === 'type') {\n      goal += ', luego escribe ' + (action.value || action.text) + ' en el campo ' + action.selector;\n    } else if (action.type === 'wait') {\n      goal += ', luego espera ' + (action.seconds || 2) + ' segundos';\n    } else if (action.type === 'submit') {\n      goal += ', luego envía el formulario';\n    }\n  }\n  \n  goal += '. Captura el resultado final y confirma que la tarea se completó correctamente.';\n}\n\n// Si no se pudo construir un goal, usar uno genérico\nif (!goal) {\n  goal = `Automatiza las siguientes ${actions.length} acciones web y confirma que se completaron: ${JSON.stringify(actions).slice(0, 200)}`;\n}\n\nconsole.log('🎯 Goal construido:', goal);\n\n// 🚀 PAYLOAD v2.0 - FORMATO PARA /agent/run\nconst v2Payload = {\n  goal: goal,\n  options: {\n    headless: metadata.headless !== undefined ? metadata.headless : false,\n    maxIterations: 30,\n    verbose: true\n  },\n  metadata: {\n    source: 'n8n-testbuilder-v2',\n    sessionId: validationResult.sessionId,\n    originalActionsCount: actions.length,\n    originalActions: actions,\n    timestamp: new Date().toISOString()\n  }\n};\n\nconsole.log('✅ v2.0 Agentic Payload ready:', {\n  goal: goal.slice(0, 100) + '...',\n  actionsCount: actions.length,\n  headless: v2Payload.options.headless\n});\n\nreturn [{ json: v2Payload }];"
+      },
+      "name": "Build v2 Agentic Payload",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        640,
+        300
+      ],
+      "id": "build-v2-payload"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://localhost:4000/agent/run",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "User-Agent",
+              "value": "n8n-testbuilder-v2-agentic/2.0"
+            },
+            {
+              "name": "X-Version",
+              "value": "2.0-agentic-loop"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{JSON.stringify($json)}}",
+        "options": {
+          "timeout": 300000,
+          "retry": {
+            "enabled": true,
+            "maxRetries": 2,
+            "retryInterval": 5000
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        840,
+        300
+      ],
+      "id": "send-to-v2-agent",
+      "name": "Send to v2.0 Agentic Agent"
+    },
+    {
+      "parameters": {
+        "functionCode": "// 🔄 PROCESAR RESPUESTA v2.0 AGENTIC LOOP\nconst agentResponse = $json;\nconst originalPayload = $node[\"Build v2 Agentic Payload\"].json;\n\nconsole.log('🔄 v2.0 Agentic Response received:', {\n  success: agentResponse.success,\n  iterations: agentResponse.iterations,\n  goalCompleted: agentResponse.goalCompleted,\n  hasExecutionLog: !!agentResponse.executionLog\n});\n\n// Manejar errores\nif (!agentResponse.success) {\n  console.log('❌ Error en v2.0 Agentic Loop:', agentResponse.error);\n  return [{\n    json: {\n      success: false,\n      error: 'Error en ejecución del agente v2.0',\n      details: agentResponse.error,\n      agentResponse: agentResponse,\n      originalGoal: originalPayload.goal,\n      timestamp: new Date().toISOString()\n    }\n  }];\n}\n\n// ✅ RESPUESTA EXITOSA\nconst finalResponse = {\n  success: true,\n  message: `Agente v2.0 completó el objetivo en ${agentResponse.iterations} iteraciones`,\n  agent: {\n    version: '2.0-agentic-loop',\n    goalCompleted: agentResponse.goalCompleted,\n    iterations: agentResponse.iterations,\n    executionLog: agentResponse.executionLog || [],\n    finalState: agentResponse.finalState || {}\n  },\n  data: {\n    goal: originalPayload.goal,\n    originalActions: originalPayload.metadata.originalActions,\n    actionsProcessed: originalPayload.metadata.originalActionsCount,\n    executionTime: agentResponse.executionTime || 'N/A'\n  },\n  metadata: {\n    source: 'n8n-v2-agentic-pipeline',\n    sessionId: originalPayload.metadata.sessionId,\n    timestamp: new Date().toISOString(),\n    agentResponse: agentResponse\n  }\n};\n\nconsole.log('✅ v2.0 Agentic Pipeline completado exitosamente');\nconsole.log(`📊 Iteraciones: ${agentResponse.iterations}`);\nconsole.log(`🎯 Goal completado: ${agentResponse.goalCompleted}`);\n\nreturn [{\n  json: finalResponse\n}];"
+      },
+      "name": "Process v2 Agentic Response",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        1040,
+        300
+      ],
+      "id": "process-v2-response"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "TestBuilder Webhook": {
+      "main": [
+        [
+          {
+            "node": "Validate Actions",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Actions": {
+      "main": [
+        [
+          {
+            "node": "Build v2 Agentic Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build v2 Agentic Payload": {
+      "main": [
+        [
+          {
+            "node": "Send to v2.0 Agentic Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send to v2.0 Agentic Agent": {
+      "main": [
+        [
+          {
+            "node": "Process v2 Agentic Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": {
+      "enabled": false
+    }
+  },
+  "versionId": "v2-agentic-loop-1.0",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "testbuilder-v2-agentic-loop"
+  },
+  "id": "TestBuilderMCPV2Agentic",
+  "tags": [
+    {
+      "createdAt": "2025-10-14T20:30:00.000Z",
+      "updatedAt": "2025-10-14T20:30:00.000Z",
+      "id": "v2-agentic",
+      "name": "v2.0 Agentic Loop"
+    },
+    {
+      "id": "testbuilder",
+      "name": "TestBuilder"
+    },
+    {
+      "id": "mcp",
+      "name": "MCP"
+    },
+    {
+      "id": "gemini",
+      "name": "Gemini"
+    }
+  ]
+}

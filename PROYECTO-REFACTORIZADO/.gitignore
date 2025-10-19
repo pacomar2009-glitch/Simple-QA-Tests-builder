@@ -1,0 +1,136 @@
+# ===================================
+# PROYECTO-REFACTORIZADO .gitignore
+# Tests Analytics v2.0
+# ===================================
+
+# ===================================
+# Variables de Entorno y Credenciales
+# ===================================
+.env
+.env.local
+.env.*.local
+*.env
+gemini-credentials.json
+**/credentials.json
+**/*.key
+**/*.pem
+
+# ===================================
+# Node.js
+# ===================================
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+package-lock.json
+yarn.lock
+.pnpm-debug.log*
+
+# ===================================
+# Testing y Coverage
+# ===================================
+coverage/
+*.lcov
+.nyc_output/
+test-results/
+junit.xml
+
+# ===================================
+# Build y Dist
+# ===================================
+dist/
+build/
+out/
+*.bundle.js
+*.bundle.js.map
+
+# ===================================
+# Logs
+# ===================================
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+playwright-runner.log
+server.log
+
+# ===================================
+# Archivos Generados
+# ===================================
+generated-tests/
+*.generated.js
+*.generated.json
+
+# ===================================
+# Docker
+# ===================================
+n8n-data/
+docker-compose.override.yml
+*.dockerignore
+
+# ===================================
+# IDE y Editores
+# ===================================
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# ===================================
+# Sistema Operativo
+# ===================================
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# ===================================
+# Backups y Temporales
+# ===================================
+*.bak
+*.backup
+*_backup.*
+*.tmp
+*.temp
+nul
+
+# ===================================
+# Chrome Extension
+# ===================================
+extension/*.crx
+extension/*.pem
+extension/.crx
+extension/.pem
+
+# ===================================
+# Playwright
+# ===================================
+playwright-report/
+test-results/
+playwright/.cache/
+
+# ===================================
+# Específico del Proyecto
+# ===================================
+.local/
+optimization-report.json
+
+# ===================================
+# Git
+# ===================================
+.git/
+.gitattributes
+
+# ===================================
+# Mantener Archivos Ejemplo
+# ===================================
+!.env.example
+!*.example.json

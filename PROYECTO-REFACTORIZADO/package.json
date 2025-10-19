@@ -1,0 +1,42 @@
+{
+  "name": "tests-analytics-n8n",
+  "version": "1.0.0",
+  "description": "Tests Analytics n8n Integration with persistent authentication",
+  "main": "index.js",
+  "scripts": {
+    "start": "powershell -ExecutionPolicy Bypass -File start-n8n-auto.ps1",
+    "configure": "powershell -ExecutionPolicy Bypass -File configure-n8n.ps1",
+    "n8n": "n8n",
+    "n8n:start": "n8n start",
+    "n8n:dev": "n8n start --tunnel",
+    "n8n:stop": "powershell -Command \"Get-Process -Name 'node' | Where-Object { $_.CommandLine -like '*n8n*' } | Stop-Process -Force\"",
+    "install:n8n": "npm install n8n@latest",
+    "status": "powershell -Command \"try { Invoke-RestMethod -Uri 'http://localhost:5678/rest/login' -Method GET -TimeoutSec 3; Write-Host '✅ n8n is running' } catch { Write-Host '❌ n8n is not running' }\""
+  },
+  "keywords": [
+    "n8n",
+    "automation",
+    "workflow",
+    "tests",
+    "analytics",
+    "ai",
+    "gemini"
+  ],
+  "author": "Tests Analytics Team",
+  "license": "MIT",
+  "dependencies": {
+    "n8n": "^1.114.4"
+  },
+  "engines": {
+    "node": ">=20.19.0 <=24.x"
+  },
+  "config": {
+    "n8n": {
+      "port": "5678",
+      "database": "sqlite",
+      "userFolder": "./n8n-config",
+      "adminEmail": "admin@testsanalytics.local",
+      "encryptionKey": "TestsAnalytics2025SecureKey123456789"
+    }
+  }
+}

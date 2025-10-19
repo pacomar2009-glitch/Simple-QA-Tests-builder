@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>🧪 Test Launcher - Captura Aislada</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .launcher-container {
+      background: white;
+      border-radius: 16px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+      max-width: 600px;
+      width: 100%;
+      padding: 40px;
+      animation: slideUp 0.5s ease-out;
+    }
+
+    @keyframes slideUp {
+      from {
+        opacity: 0;
+        transform: translateY(30px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .header {
+      text-align: center;
+      margin-bottom: 30px;
+    }
+
+    .header h1 {
+      font-size: 28px;
+      color: #2d3748;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+    }
+
+    .header p {
+      color: #718096;
+      font-size: 14px;
+    }
+
+    .url-section {
+      margin-bottom: 24px;
+    }
+
+    .url-section label {
+      display: block;
+      font-weight: 600;
+      color: #2d3748;
+      margin-bottom: 8px;
+      font-size: 14px;
+    }
+
+    .url-input-container {
+      position: relative;
+    }
+
+    .url-input {
+      width: 100%;
+      padding: 14px 16px;
+      border: 2px solid #e2e8f0;
+      border-radius: 8px;
+      font-size: 15px;
+      transition: all 0.2s;
+      font-family: 'Courier New', monospace;
+    }
+
+    .url-input:focus {
+      outline: none;
+      border-color: #667eea;
+      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+
+    .url-input.valid {
+      border-color: #48bb78;
+    }
+
+    .url-input.invalid {
+      border-color: #f56565;
+    }
+
+    .url-status {
+      position: absolute;
+      right: 16px;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 18px;
+    }
+
+    .suggestions {
+      margin-top: 20px;
+    }
+
+    .suggestions-label {
+      font-size: 13px;
+      color: #718096;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .suggestions-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 10px;
+    }
+
+    .suggestion-card {
+      background: #f7fafc;
+      border: 2px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 12px;
+      cursor: pointer;
+      transition: all 0.2s;
+      text-align: center;
+    }
+
+    .suggestion-card:hover {
+      background: #edf2f7;
+      border-color: #667eea;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.15);
+    }
+
+    .suggestion-card.selected {
+      background: #667eea;
+      border-color: #667eea;
+      color: white;
+    }
+
+    .suggestion-icon {
+      font-size: 24px;
+      margin-bottom: 6px;
+    }
+
+    .suggestion-name {
+      font-size: 13px;
+      font-weight: 600;
+      margin-bottom: 2px;
+    }
+
+    .suggestion-url {
+      font-size: 10px;
+      opacity: 0.7;
+      font-family: monospace;
+    }
+
+    .options-section {
+      margin-top: 24px;
+      padding: 16px;
+      background: #f7fafc;
+      border-radius: 8px;
+    }
+
+    .options-label {
+      font-size: 13px;
+      font-weight: 600;
+      color: #2d3748;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .option-item {
+      display: flex;
+      align-items: center;
+      margin-bottom: 10px;
+      cursor: pointer;
+    }
+
+    .option-item:last-child {
+      margin-bottom: 0;
+    }
+
+    .option-checkbox {
+      width: 18px;
+      height: 18px;
+      margin-right: 10px;
+      cursor: pointer;
+      accent-color: #667eea;
+    }
+
+    .option-label {
+      font-size: 14px;
+      color: #4a5568;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .launch-button {
+      width: 100%;
+      padding: 16px;
+      margin-top: 24px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+    }
+
+    .launch-button:hover:not(:disabled) {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+    }
+
+    .launch-button:active:not(:disabled) {
+      transform: translateY(0);
+    }
+
+    .launch-button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .launch-button .spinner {
+      width: 16px;
+      height: 16px;
+      border: 2px solid rgba(255, 255, 255, 0.3);
+      border-top-color: white;
+      border-radius: 50%;
+      animation: spin 0.6s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .info-banner {
+      margin-top: 20px;
+      padding: 12px 16px;
+      background: #edf2f7;
+      border-left: 4px solid #667eea;
+      border-radius: 4px;
+      font-size: 13px;
+      color: #4a5568;
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+    }
+
+    .info-banner-icon {
+      font-size: 18px;
+      flex-shrink: 0;
+    }
+
+    .custom-url-button {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 16px;
+      background: white;
+      border: 2px dashed #cbd5e0;
+      border-radius: 8px;
+      color: #718096;
+      font-size: 13px;
+      cursor: pointer;
+      transition: all 0.2s;
+      margin-top: 10px;
+    }
+
+    .custom-url-button:hover {
+      border-color: #667eea;
+      color: #667eea;
+      background: #f7fafc;
+    }
+
+    .error-message {
+      margin-top: 8px;
+      padding: 8px 12px;
+      background: #fff5f5;
+      border-left: 3px solid #f56565;
+      border-radius: 4px;
+      color: #c53030;
+      font-size: 13px;
+      display: none;
+    }
+
+    .error-message.show {
+      display: block;
+      animation: shake 0.3s;
+    }
+
+    @keyframes shake {
+      0%, 100% { transform: translateX(0); }
+      25% { transform: translateX(-5px); }
+      75% { transform: translateX(5px); }
+    }
+  </style>
+</head>
+<body>
+  <div class="launcher-container">
+    <div class="header">
+      <h1>
+        🧪 <span>Test Launcher</span>
+      </h1>
+      <p>Captura acciones en un entorno limpio y aislado</p>
+    </div>
+
+    <div class="url-section">
+      <label for="url-input">📍 URL a probar:</label>
+      <div class="url-input-container">
+        <input 
+          type="url" 
+          id="url-input" 
+          class="url-input" 
+          placeholder="https://www.example.com"
+          autocomplete="off"
+        >
+        <span class="url-status" id="url-status"></span>
+      </div>
+      <div class="error-message" id="error-message"></div>
+    </div>
+
+    <div class="suggestions">
+      <div class="suggestions-label">
+        💡 <span>Sitios populares:</span>
+      </div>
+      <div class="suggestions-grid" id="suggestions-grid">
+        <!-- Se llenará dinámicamente -->
+      </div>
+      <button class="custom-url-button" id="custom-url-btn">
+        ✏️ <span>Usar URL personalizada</span>
+      </button>
+    </div>
+
+    <div class="options-section">
+      <div class="options-label">
+        ⚙️ <span>Opciones de captura:</span>
+      </div>
+      <label class="option-item">
+        <input type="checkbox" id="opt-incognito" class="option-checkbox" checked>
+        <span class="option-label">Perfil limpio (ventana incógnito sin cookies ni caché)</span>
+      </label>
+      <label class="option-item">
+        <input type="checkbox" id="opt-fullscreen" class="option-checkbox">
+        <span class="option-label">Abrir en pantalla completa</span>
+      </label>
+      <label class="option-item">
+        <input type="checkbox" id="opt-autostart" class="option-checkbox" checked>
+        <span class="option-label">Iniciar grabación automáticamente</span>
+      </label>
+    </div>
+
+    <button class="launch-button" id="launch-btn" disabled>
+      <span id="launch-text">🚀 Iniciar Captura en Ventana Limpia</span>
+    </button>
+
+    <div class="info-banner">
+      <span class="info-banner-icon">ℹ️</span>
+      <div>
+        Se abrirá una nueva ventana aislada donde podrás interactuar con el sitio. 
+        Todas las acciones se capturarán automáticamente sin interferencia de otras extensiones o sesiones.
+      </div>
+    </div>
+  </div>
+
+  <script src="test-launcher.js"></script>
+</body>
+</html>

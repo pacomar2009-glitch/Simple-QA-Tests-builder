@@ -1,0 +1,86 @@
+{
+  "manifest_version": 3,
+  "name": "TestBuilder - AI Test Automation",
+  "version": "25.10.06.1544",
+  "description": "AI-powered test automation with Playwright, MCP integration, and advanced user action tracking",
+  "icons": {
+    "16": "icon.png",
+    "32": "icon.png",
+    "48": "icon.png",
+    "128": "icon.png"
+  },
+  "permissions": [
+    "storage",
+    "activeTab",
+    "scripting",
+    "downloads",
+    "tabs",
+    "contextMenus",
+    "webNavigation",
+    "webRequest"
+  ],
+  "host_permissions": [
+    "<all_urls>"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["src/content-enhanced-v2.js"],
+      "run_at": "document_idle",
+      "all_frames": false,
+      "match_about_blank": true,
+      "match_origin_as_fallback": false
+    }
+  ],
+  "action": {
+    "default_popup": "popup-v2.html",
+    "default_title": "TestBuilder - AI Test Automation",
+    "default_icon": {
+      "16": "icon.png",
+      "32": "icon.png",
+      "48": "icon.png",
+      "128": "icon.png"
+    }
+  },
+  "commands": {
+    "toggle-recording": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+R",
+        "mac": "Command+Shift+R"
+      },
+      "description": "Toggle test recording"
+    },
+    "generate-test": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+G",
+        "mac": "Command+Shift+G"
+      },
+      "description": "Generate AI test"
+    },
+    "open-launcher": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+L",
+        "mac": "Command+Shift+L"
+      },
+      "description": "Open Test Launcher (isolated window)"
+    }
+  },
+  "options_ui": {
+    "page": "config/config.html",
+    "open_in_tab": true
+  },
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "config/config.html",
+        "config/config.js",
+        "*.png",
+        "*.svg"
+      ],
+      "matches": ["<all_urls>"]
+    }
+  ]
+}

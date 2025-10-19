@@ -1,0 +1,837 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TestBuilder v2</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      width: 450px;
+      min-height: 500px;
+      max-height: 700px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: #333;
+      overflow: hidden;
+    }
+
+    .container {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      max-height: 700px;
+    }
+
+    /* ===================================
+       HEADER
+    =================================== */
+    .header {
+      background: rgba(255, 255, 255, 0.95);
+      padding: 20px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+      border-radius: 12px 12px 0 0;
+    }
+
+    .header h1 {
+      font-size: 24px;
+      font-weight: 700;
+      color: #667eea;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .header-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .help-button {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: #667eea;
+      color: white;
+      border: none;
+      cursor: pointer;
+      font-size: 18px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.3s ease;
+      flex-shrink: 0;
+    }
+
+    .help-button:hover {
+      background: #5568d3;
+      transform: scale(1.1);
+    }
+
+    .version-badge {
+      font-size: 10px;
+      background: #667eea;
+      color: white;
+      padding: 3px 8px;
+      border-radius: 12px;
+      font-weight: 600;
+    }
+
+    .status-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 12px;
+      padding: 10px;
+      background: #f8f9fa;
+      border-radius: 8px;
+    }
+
+    .status-indicator {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      font-weight: 600;
+    }
+
+    .status-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: #dc3545;
+      animation: pulse 2s ease-in-out infinite;
+    }
+
+    .status-dot.recording {
+      background: #28a745;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+
+    .action-count {
+      font-size: 13px;
+      color: #6c757d;
+      background: white;
+      padding: 6px 12px;
+      border-radius: 20px;
+      font-weight: 600;
+    }
+
+    /* ===================================
+       CONTROLS
+    =================================== */
+    .controls {
+      display: flex;
+      gap: 10px;
+      padding: 15px 20px;
+      background: rgba(255, 255, 255, 0.95);
+    }
+
+    button {
+      flex: 1;
+      padding: 12px 20px;
+      border: none;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    }
+
+    button:active {
+      transform: translateY(0);
+    }
+
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .btn-record {
+      background: #28a745;
+      color: white;
+    }
+
+    .btn-record:hover {
+      background: #218838;
+    }
+
+    .btn-stop {
+      background: #dc3545;
+      color: white;
+    }
+
+    .btn-stop:hover {
+      background: #c82333;
+    }
+
+    .btn-send {
+      background: #667eea;
+      color: white;
+    }
+
+    .btn-send:hover {
+      background: #5568d3;
+    }
+
+    .btn-clear {
+      background: #6c757d;
+      color: white;
+    }
+
+    .btn-clear:hover {
+      background: #5a6268;
+    }
+
+    /* ===================================
+       TEST INFO (Estado de Test Launcher)
+    =================================== */
+    .test-info {
+      margin: 0 20px 15px 20px;
+      padding: 15px;
+      background: linear-gradient(135deg, #667eea15 0%, #764ba215 100%);
+      border: 2px solid #667eea;
+      border-radius: 12px;
+      animation: slideIn 0.3s ease-out;
+    }
+
+    .test-info-content {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .test-info-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 13px;
+    }
+
+    .test-info-label {
+      color: #667eea;
+      font-weight: 600;
+    }
+
+    .test-info-value {
+      color: #2c3e50;
+      font-family: 'Courier New', monospace;
+      font-size: 12px;
+      max-width: 200px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .badge-count {
+      background: #28a745;
+      color: white;
+      padding: 2px 10px;
+      border-radius: 12px;
+      font-weight: bold;
+    }
+
+    @keyframes slideIn {
+      from {
+        opacity: 0;
+        transform: translateY(-10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    /* ===================================
+       ACTIONS LIST
+    =================================== */
+    .actions-container {
+      flex: 1;
+      padding: 20px;
+      overflow-y: auto;
+      background: rgba(255, 255, 255, 0.9);
+    }
+
+    .actions-container::-webkit-scrollbar {
+      width: 8px;
+    }
+
+    .actions-container::-webkit-scrollbar-track {
+      background: #f1f1f1;
+      border-radius: 10px;
+    }
+
+    .actions-container::-webkit-scrollbar-thumb {
+      background: #667eea;
+      border-radius: 10px;
+    }
+
+    .actions-container::-webkit-scrollbar-thumb:hover {
+      background: #5568d3;
+    }
+
+    /* Empty State */
+    .empty-state {
+      text-align: center;
+      padding: 60px 20px;
+      color: #6c757d;
+    }
+
+    .empty-state-icon {
+      font-size: 64px;
+      margin-bottom: 20px;
+      opacity: 0.3;
+    }
+
+    .empty-state h3 {
+      font-size: 18px;
+      margin-bottom: 10px;
+      color: #495057;
+    }
+
+    .empty-state p {
+      font-size: 14px;
+      line-height: 1.6;
+    }
+
+    /* Action Cards */
+    .action-card {
+      background: white;
+      border: 2px solid #e9ecef;
+      border-radius: 10px;
+      padding: 12px;
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      transition: all 0.2s ease;
+      cursor: move;
+      position: relative;
+    }
+
+    .action-card:hover {
+      border-color: #667eea;
+      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.15);
+    }
+
+    .action-card.dragging {
+      opacity: 0.5;
+      transform: rotate(2deg);
+    }
+
+    .action-card.drag-over {
+      border-color: #28a745;
+      border-style: dashed;
+      background: #f0f8f4;
+    }
+
+    /* Drag Handle */
+    .drag-handle {
+      font-size: 18px;
+      color: #adb5bd;
+      cursor: grab;
+      user-select: none;
+      padding: 0 5px;
+    }
+
+    .drag-handle:active {
+      cursor: grabbing;
+    }
+
+    /* Action Number */
+    .action-number {
+      min-width: 30px;
+      height: 30px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 13px;
+      font-weight: 700;
+      flex-shrink: 0;
+    }
+
+    /* Action Content */
+    .action-content {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      overflow: hidden;
+    }
+
+    .action-type {
+      font-size: 11px;
+      text-transform: uppercase;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      color: white;
+      padding: 3px 8px;
+      border-radius: 4px;
+      display: inline-block;
+      width: fit-content;
+    }
+
+    .action-type.click { background: #28a745; }
+    .action-type.input { background: #007bff; }
+    .action-type.select { background: #fd7e14; }
+    .action-type.submit { background: #dc3545; }
+    .action-type.navigation { background: #6f42c1; }
+
+    .action-target {
+      font-size: 13px;
+      font-weight: 600;
+      color: #495057;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .action-value {
+      font-size: 12px;
+      color: #6c757d;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .action-value.sensitive {
+      color: #dc3545;
+      font-weight: 600;
+    }
+
+    .action-timestamp {
+      font-size: 10px;
+      color: #adb5bd;
+    }
+
+    /* Reorder Controls */
+    .reorder-controls {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .btn-reorder {
+      width: 24px;
+      height: 24px;
+      padding: 0;
+      background: #f8f9fa;
+      border: 1px solid #dee2e6;
+      border-radius: 4px;
+      font-size: 12px;
+      color: #495057;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .btn-reorder:hover {
+      background: #667eea;
+      border-color: #667eea;
+      color: white;
+      transform: none;
+      box-shadow: none;
+    }
+
+    .btn-reorder:disabled {
+      opacity: 0.3;
+      cursor: not-allowed;
+    }
+
+    /* Delete Button */
+    .btn-delete {
+      width: 32px;
+      height: 32px;
+      padding: 0;
+      background: #fff5f5;
+      border: 1px solid #ffcccb;
+      border-radius: 6px;
+      font-size: 16px;
+      color: #dc3545;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      flex-shrink: 0;
+    }
+
+    .btn-delete:hover {
+      background: #dc3545;
+      border-color: #dc3545;
+      color: white;
+      transform: scale(1.1);
+      box-shadow: 0 2px 8px rgba(220, 53, 69, 0.3);
+    }
+
+    /* ===================================
+       TIMELINE (opcional - visual enhancement)
+    =================================== */
+    .timeline-indicator {
+      position: absolute;
+      left: 42px;
+      top: 0;
+      bottom: 0;
+      width: 2px;
+      background: linear-gradient(to bottom, #667eea, #764ba2);
+      opacity: 0.2;
+      z-index: 0;
+    }
+
+    /* ===================================
+       FOOTER
+    =================================== */
+    .footer {
+      padding: 15px 20px;
+      background: rgba(255, 255, 255, 0.95);
+      border-radius: 0 0 12px 12px;
+      text-align: center;
+      font-size: 11px;
+      color: #6c757d;
+    }
+
+    .footer a {
+      color: #667eea;
+      text-decoration: none;
+      font-weight: 600;
+    }
+
+    .footer a:hover {
+      text-decoration: underline;
+    }
+
+    /* ===================================
+       HELP MODAL
+    =================================== */
+    .help-modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.7);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .help-modal.active {
+      display: flex;
+    }
+
+    .help-content {
+      background: white;
+      border-radius: 12px;
+      max-width: 90%;
+      max-height: 80%;
+      overflow-y: auto;
+      padding: 20px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+      position: relative;
+    }
+
+    .help-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+      padding-bottom: 15px;
+      border-bottom: 2px solid #667eea;
+    }
+
+    .help-header h2 {
+      color: #667eea;
+      font-size: 20px;
+      margin: 0;
+    }
+
+    .close-modal {
+      background: none;
+      border: none;
+      font-size: 24px;
+      cursor: pointer;
+      color: #6c757d;
+      width: 32px;
+      height: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 50%;
+      transition: all 0.3s ease;
+    }
+
+    .close-modal:hover {
+      background: #f8f9fa;
+      color: #333;
+    }
+
+    .help-body {
+      font-size: 13px;
+      line-height: 1.6;
+      color: #333;
+    }
+
+    .help-body h3 {
+      color: #667eea;
+      font-size: 16px;
+      margin-top: 20px;
+      margin-bottom: 10px;
+    }
+
+    .help-body h4 {
+      color: #764ba2;
+      font-size: 14px;
+      margin-top: 15px;
+      margin-bottom: 8px;
+    }
+
+    .help-body ul, .help-body ol {
+      margin-left: 20px;
+      margin-bottom: 15px;
+    }
+
+    .help-body li {
+      margin-bottom: 5px;
+    }
+
+    .help-body code {
+      background: #f8f9fa;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-family: 'Consolas', 'Monaco', monospace;
+      font-size: 12px;
+      color: #e83e8c;
+    }
+
+    .help-body .step-box {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 15px;
+      border-radius: 8px;
+      margin: 15px 0;
+      font-weight: 600;
+    }
+
+    .help-body .warning-box {
+      background: #fff3cd;
+      border-left: 4px solid #ffc107;
+      padding: 12px;
+      margin: 15px 0;
+      border-radius: 4px;
+    }
+
+    .help-body .success-box {
+      background: #d4edda;
+      border-left: 4px solid #28a745;
+      padding: 12px;
+      margin: 15px 0;
+      border-radius: 4px;
+    }
+
+    /* ===================================
+       ANIMATIONS
+    =================================== */
+    @keyframes slideIn {
+      from {
+        opacity: 0;
+        transform: translateY(10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .action-card {
+      animation: slideIn 0.3s ease;
+    }
+
+    /* ===================================
+       KEYBOARD SHORTCUTS HINT
+    =================================== */
+    .shortcuts-hint {
+      position: fixed;
+      bottom: 60px;
+      right: 20px;
+      background: rgba(0, 0, 0, 0.8);
+      color: white;
+      padding: 10px 15px;
+      border-radius: 8px;
+      font-size: 11px;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s ease;
+      z-index: 1000;
+    }
+
+    .shortcuts-hint.visible {
+      opacity: 1;
+    }
+
+    .shortcuts-hint kbd {
+      background: rgba(255, 255, 255, 0.2);
+      padding: 2px 6px;
+      border-radius: 3px;
+      font-family: monospace;
+      font-size: 10px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- HEADER -->
+    <div class="header">
+      <div class="header-top">
+        <h1>
+          🎯 TestBuilder
+          <span class="version-badge">v2.0</span>
+        </h1>
+        <button class="help-button" id="btnHelp" title="¿Necesitas ayuda?">
+          ❓
+        </button>
+      </div>
+      <div class="status-bar">
+        <div class="status-indicator">
+          <div class="status-dot" id="statusDot"></div>
+          <span id="statusText">Listo</span>
+        </div>
+        <div class="action-count">
+          <span id="actionCount">0</span> acciones
+        </div>
+      </div>
+    </div>
+
+    <!-- CONTROLS -->
+    <div class="controls">
+      <button id="btnLauncher" class="btn-send" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+        🚀 Test Launcher
+      </button>
+      <button id="btnRecord" class="btn-record">
+        ⏺️ Grabar
+      </button>
+      <button id="btnStop" class="btn-stop" style="display: none;" disabled>
+        ⏹️ Detener
+      </button>
+      <button id="btnSend" class="btn-send" style="display: none;" disabled>
+        📤 Enviar a IA
+      </button>
+      <button id="btnClear" class="btn-clear" style="display: none;" disabled>
+        🗑️ Limpiar
+      </button>
+    </div>
+
+    <!-- TEST INFO (visible cuando test launcher está activo) -->
+    <div id="testInfo" class="test-info" style="display: none;">
+      <!-- Se llenará dinámicamente con JavaScript -->
+    </div>
+
+    <!-- ACTIONS LIST -->
+    <div class="actions-container" id="actionsContainer">
+      <div class="empty-state" id="emptyState">
+        <div class="empty-state-icon">📋</div>
+        <h3>No hay acciones capturadas</h3>
+        <p>Haz clic en "Grabar" para comenzar a capturar tus interacciones.<br>
+        Los eventos se filtrarán automáticamente para eliminar acciones fantasma.</p>
+      </div>
+    </div>
+
+    <!-- FOOTER -->
+    <div class="footer">
+      <p>
+        Arrastra para reordenar • <kbd>Alt+↑↓</kbd> mover • <kbd>Supr</kbd> eliminar<br>
+        <a href="#" id="showShortcuts">Ver todos los atajos</a>
+      </p>
+    </div>
+  </div>
+
+  <!-- KEYBOARD SHORTCUTS HINT -->
+  <div class="shortcuts-hint" id="shortcutsHint">
+    <strong>Atajos de teclado:</strong><br>
+    <kbd>Alt</kbd> + <kbd>↑</kbd> Mover arriba<br>
+    <kbd>Alt</kbd> + <kbd>↓</kbd> Mover abajo<br>
+    <kbd>Supr</kbd> Eliminar seleccionado<br>
+    <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>R</kbd> Grabar/Detener
+  </div>
+
+  <!-- HELP MODAL -->
+  <div class="help-modal" id="helpModal">
+    <div class="help-content">
+      <div class="help-header">
+        <h2>🔒 ¿Cómo habilitar el modo incógnito?</h2>
+        <button class="close-modal" id="closeModal">×</button>
+      </div>
+      <div class="help-body">
+        <div class="step-box">
+          ⚡ GUÍA RÁPIDA (30 segundos)
+        </div>
+        
+        <ol>
+          <li>Escribe en Chrome: <code>chrome://extensions/</code></li>
+          <li>Busca la extensión <strong>TestBuilder</strong></li>
+          <li>Click en el botón <strong>[Detalles]</strong></li>
+          <li><strong>Scroll HACIA ABAJO</strong> (está casi al final)</li>
+          <li>Busca: <strong>"🔒 Permitir en modo incógnito"</strong></li>
+          <li>Activa el toggle: ❌ → ✅</li>
+          <li>¡Listo! ✅</li>
+        </ol>
+
+        <div class="warning-box">
+          <strong>📍 UBICACIÓN:</strong> La opción está en la página de <strong>detalles</strong> de la extensión, NO en la página principal.
+        </div>
+
+        <h3>❓ ¿Por qué necesito esto?</h3>
+        <p>
+          El <strong>Test Launcher</strong> abre ventanas en modo incógnito para capturar tests limpios sin cookies ni caché. 
+          Sin este permiso, Chrome bloquea la creación de ventanas incógnito.
+        </p>
+
+        <h3>🚨 Si no ves la opción</h3>
+        <h4>Problema 1: No aparece "Permitir en modo incógnito"</h4>
+        <p><strong>Solución:</strong> Activa el <strong>"Modo de desarrollador"</strong> (toggle arriba a la derecha en chrome://extensions/)</p>
+
+        <h4>Problema 2: El toggle está deshabilitado (gris)</h4>
+        <p><strong>Solución:</strong> Recarga la extensión haciendo click en el botón 🔄 en chrome://extensions/</p>
+
+        <h3>✅ Verificación</h3>
+        <div class="success-box">
+          <strong>Para confirmar que funcionó:</strong>
+          <ol>
+            <li>Abre una ventana incógnito (<code>Ctrl + Shift + N</code>)</li>
+            <li>Busca el ícono 🧪 de TestBuilder arriba a la derecha</li>
+            <li>Si aparece, ✅ el permiso está activo</li>
+          </ol>
+        </div>
+
+        <h3>🆘 ¿Necesitas más ayuda?</h3>
+        <p>
+          Lee la guía completa: Abre el archivo <code>GUIA-HABILITAR-INCOGNITO.md</code> 
+          en la carpeta de la extensión para ver instrucciones detalladas con imágenes.
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <script src="popup-v2.js"></script>
+</body>
+</html>
