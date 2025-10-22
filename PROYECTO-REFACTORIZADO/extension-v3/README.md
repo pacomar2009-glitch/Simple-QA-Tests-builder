@@ -31,14 +31,19 @@ Extensión Chrome con arquitectura agéntica implementando HU del MVP.
   4. **Clase única** (tag.class)
   5. **XPath** - Fallback
 
-### 🔄 **US#121** - IA Ligera Gemini Flash (PRÓXIMO)
-- **Status**: Pendiente
-- **Archivos**: `src/ai-ligera/` (a crear)
+### ✅ **US#121** - IA Ligera Gemini Flash (COMPLETADO)
+- **Status**: ✅ Implementado
+- **Archivos**: 
+  - `src/ai-ligera/gemini-client.js` - Cliente Gemini API
+  - `config.html` + `config.js` - Configuración API key
 - **Features**:
-  - Pre-análisis con Gemini Flash 8B (<1s)
-  - Clasificación semántica (Login, Form, Navigation)
-  - Detección de errores
-  - 300 tokens máx
+  - ✅ Pre-análisis con Gemini Flash 8B (<1s)
+  - ✅ Pre-ranking de selectores (top 3)
+  - ✅ Detección de flujo de ventanas (_blank)
+  - ✅ Clasificación de intenciones (form, navigation, auth, search, etc.)
+  - ✅ Cache de análisis (evita duplicados)
+  - ✅ Fallback sin API key (100% funcional)
+  - ✅ Max 300 tokens por análisis
 
 ### 🔄 **US#57** - Cola de Casos UI (PRÓXIMO)
 - **Status**: Pendiente
@@ -56,13 +61,20 @@ npm install
 # - Click "Cargar extensión sin empaquetar"
 # - Seleccionar carpeta: extension-v3/
 
-# 3. Probar funcionalidad
+# 3. (US#121) Configurar Gemini API Key (opcional)
+# - Click en icono de extensión → "Configurar API Key"
+# - Obtener API key gratis: https://aistudio.google.com/apikey
+# - Ingresar API key y guardar
+# - Sin API key: La extensión usa fallback (análisis básico sin IA)
+
+# 4. Probar funcionalidad
 # - Abrir cualquier página web
 # - Click en icono de extensión en toolbar
 # - Click "🔴 Grabar"
 # - Interactuar con la página (clicks, inputs, etc.)
 # - Click "⏹️ Detener"
 # - Ver consola del Service Worker (chrome://extensions/ → "Inspeccionar vistas: Service Worker")
+# - Verificar eventos con aiPreAnalysis (US#121)
 ```
 
 ## 📂 Estructura
@@ -72,13 +84,17 @@ extension-v3/
 ├── manifest.json                    # Manifest v3 con permisos debugger
 ├── popup.html                        # UI principal
 ├── popup.js                          # Controlador popup
+├── config.html                       # US#121: Config Gemini API
+├── config.js                         # US#121: Script config
 ├── devtools.html                     # DevTools page (MCP)
 ├── icon.png                          # Icono
 ├── src/
 │   ├── background/
-│   │   └── service-worker.js         # US#120: MCP Chrome DevTools
+│   │   └── service-worker.js         # US#120 + US#121: MCP + Gemini
 │   ├── content/
 │   │   └── capture.js                # US#55 + US#56: Captura eventos
+│   ├── ai-ligera/                    # US#121: IA Ligera
+│   │   └── gemini-client.js          # Cliente Gemini Flash 8B
 │   ├── ai-ligera/                    # US#121: (próximo)
 │   └── shared/                       # Código compartido
 └── tests/                            # Tests unitarios (TDD)

@@ -1,7 +1,10 @@
 // 🔧 US#120 - SERVICE WORKER (Background)
 // Gestiona MCP Chrome DevTools y comunicación con content scripts
 
-console.log('🚀 TestBuilder Agéntico v3 - Service Worker iniciado (US#120)');
+// 🤖 US#121 - Import Gemini IA Ligera
+import { GeminiAIClient } from '../ai-ligera/gemini-client.js';
+
+console.log('🚀 TestBuilder Agéntico v3 - Service Worker iniciado (US#120 + US#121)');
 
 // 🗄️ Estado global de grabación
 const state = {
@@ -9,8 +12,27 @@ const state = {
   currentTabId: null,
   debuggerAttached: false,
   capturedEvents: [],
-  sessionId: null
+  sessionId: null,
+  geminiAI: null // US#121: Cliente Gemini IA
 };
+
+// 🤖 US#121 - Inicializar Gemini IA Ligera
+async function initializeGeminiAI() {
+  state.geminiAI = new GeminiAIClient();
+  
+  // Cargar API key desde storage
+  const result = await chrome.storage.sync.get(['geminiApiKey']);
+  if (result.geminiApiKey) {
+    await state.geminiAI.initialize(result.geminiApiKey);
+  } else {
+    console.warn('⚠️ No hay API key de Gemini configurada. Usando fallback.');
+  }
+}
+
+// Inicializar Gemini al cargar service worker
+initializeGeminiAI().catch(error => {
+  console.error('❌ Error inicializando Gemini:', error);
+});
 
 // 🎧 LISTENER: Comandos de teclado
 chrome.commands.onCommand.addListener((command) => {
@@ -44,18 +66,38 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         state: {
           isRecording: state.isRecording,
           eventsCount: state.capturedEvents.length,
-          sessionId: state.sessionId
+          sessionId: state.sessionId,
+          geminiEnabled: state.geminiAI?.isInitialized || false // US#121
         }
       });
       return false;
       
     case 'USER_ACTION':
-      // US#55: Captura de eventos desde content script
+      // US#55 + US#121: Captura de eventos con pre-análisis IA
       if (state.isRecording) {
-        captureUserAction(message.payload);
+        captureUserAction(message.payload)
+          .then(() => sendResponse({ success: true }))
+          .catch(error => sendResponse({ success: false, error: error.message }));
+        return true; // async response
       }
-      sendResponse({ success: true });
+      sendResponse({ success: false, error: 'Not recording' });
       return false;
+      
+    case 'CONFIGURE_GEMINI_API_KEY':
+      // US#121: Configurar API key de Gemini
+      chrome.storage.sync.set({ geminiApiKey: message.apiKey })
+        .then(() => {
+          if (state.geminiAI) {
+            return state.geminiAI.initialize(message.apiKey);
+          }
+        })
+        .then(() => {
+          sendResponse({ success: true, message: 'Gemini API key configurada' });
+        })
+        .catch(error => {
+          sendResponse({ success: false, error: error.message });
+        });
+      return true;
       
     default:
       console.warn(`⚠️ Tipo de mensaje desconocido: ${message.type}`);
@@ -255,17 +297,61 @@ function onDebuggerEvent(source, method, params) {
 }
 
 // 📝 CAPTURAR ACCIÓN DE USUARIO (desde content script)
-function captureUserAction(action) {
+// US#121: Ahora incluye pre-análisis con Gemini IA Ligera
+async function captureUserAction(action) {
+  console.log(`📝 Acción capturada (iniciando pre-análisis): ${action.type}`);
+  
+  // 🤖 US#121 - Pre-análisis con Gemini IA Ligera
+  let aiPreAnalysis = null;
+  if (state.geminiAI) {
+    try {
+      const pageContext = {
+        url: action.url || '',
+        title: action.pageTitle || ''
+      };
+      
+      // Extraer datos del elemento desde action.target
+      const elementData = {
+        tagName: action.tagName,
+        id: action.attributes?.id || '',
+        dataTestId: action.attributes?.['data-testid'] || '',
+        ariaLabel: action.attributes?.['aria-label'] || '',
+        textContent: action.text || '',
+        href: action.attributes?.href || '',
+        target: action.attributes?.target || '',
+        type: action.attributes?.type || '',
+        name: action.attributes?.name || ''
+      };
+      
+      aiPreAnalysis = await state.geminiAI.preAnalyzeElement(elementData, pageContext);
+      console.log(`✅ Pre-análisis completado en ${aiPreAnalysis.latencyMs}ms`);
+    } catch (error) {
+      console.error('❌ Error en pre-análisis Gemini:', error);
+      // Continuar sin análisis IA
+    }
+  }
+  
   const event = {
     type: 'user_action',
     action,
     timestamp: Date.now(),
-    sessionId: state.sessionId
+    sessionId: state.sessionId,
+    
+    // 🤖 US#121: Añadir pre-análisis IA
+    aiPreAnalysis: aiPreAnalysis || {
+      note: 'Sin pre-análisis (Gemini no disponible)',
+      phase: 'PHASE_1_NO_AI'
+    }
   };
   
   state.capturedEvents.push(event);
   
-  console.log(`📝 Acción capturada: ${action.type}`, event);
+  console.log(`📝 Evento guardado con pre-análisis IA:`, {
+    type: action.type,
+    selector: action.selector,
+    aiIntent: aiPreAnalysis?.intent || 'unknown',
+    aiLatency: aiPreAnalysis?.latencyMs || 0
+  });
 }
 
 // 📝 CAPTURAR EVENTO DEL DEBUGGER

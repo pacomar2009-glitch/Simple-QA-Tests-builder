@@ -1,4 +1,4 @@
-// 🎮 US#120 - POPUP CONTROLLER
+// 🎮 US#120 + US#121 - POPUP CONTROLLER
 // Interfaz de usuario para controlar grabación
 
 console.log('🎮 Popup cargado');
@@ -9,12 +9,14 @@ const btnStop = document.getElementById('btn-stop');
 const statusEl = document.getElementById('status');
 const eventsCountEl = document.getElementById('events-count');
 const sessionIdEl = document.getElementById('session-id');
+const geminiStatusEl = document.getElementById('gemini-status'); // US#121
 
 // Estado local
 let currentState = {
   isRecording: false,
   eventsCount: 0,
-  sessionId: null
+  sessionId: null,
+  geminiEnabled: false // US#121
 };
 
 // 🚀 INICIALIZAR POPUP
@@ -27,6 +29,15 @@ async function init() {
   // Adjuntar listeners
   btnRecord.addEventListener('click', handleRecord);
   btnStop.addEventListener('click', handleStop);
+  
+  // US#121: Link a config
+  const linkConfig = document.getElementById('link-config');
+  if (linkConfig) {
+    linkConfig.addEventListener('click', (e) => {
+      e.preventDefault();
+      chrome.tabs.create({ url: chrome.runtime.getURL('config.html') });
+    });
+  }
   
   console.log('✅ Popup inicializado');
 }
@@ -47,6 +58,15 @@ async function updateState() {
 
 // 🎨 RENDERIZAR ESTADO EN UI
 function renderState() {
+  // US#121: Estado de Gemini IA
+  if (currentState.geminiEnabled) {
+    geminiStatusEl.textContent = '✅ Activo';
+    geminiStatusEl.style.color = '#22c55e';
+  } else {
+    geminiStatusEl.textContent = '⚠️ Fallback';
+    geminiStatusEl.style.color = '#f59e0b';
+  }
+  
   if (currentState.isRecording) {
     // GRABANDO
     statusEl.innerHTML = '<span class="pulse"></span>Grabando';

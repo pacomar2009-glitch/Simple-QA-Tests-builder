@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Configuración - TestBuilder Agéntico v3</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      width: 450px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: #333;
+      padding: 20px;
+    }
+    
+    .container {
+      background: white;
+      border-radius: 12px;
+      padding: 25px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+    
+    h1 {
+      font-size: 22px;
+      color: #667eea;
+      margin-bottom: 20px;
+      text-align: center;
+    }
+    
+    .section {
+      margin-bottom: 25px;
+    }
+    
+    .section-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: #555;
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    
+    .info-box {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 6px;
+      padding: 12px;
+      font-size: 13px;
+      color: #64748b;
+      margin-bottom: 15px;
+    }
+    
+    .info-box code {
+      background: #e2e8f0;
+      padding: 2px 6px;
+      border-radius: 3px;
+      font-family: 'Courier New', monospace;
+      font-size: 12px;
+    }
+    
+    label {
+      display: block;
+      font-size: 13px;
+      font-weight: 500;
+      color: #555;
+      margin-bottom: 8px;
+    }
+    
+    input[type="text"],
+    input[type="password"] {
+      width: 100%;
+      padding: 10px 12px;
+      border: 2px solid #e2e8f0;
+      border-radius: 6px;
+      font-size: 14px;
+      font-family: 'Courier New', monospace;
+      transition: border-color 0.2s;
+    }
+    
+    input[type="text"]:focus,
+    input[type="password"]:focus {
+      outline: none;
+      border-color: #667eea;
+    }
+    
+    .btn {
+      width: 100%;
+      padding: 12px;
+      border: none;
+      border-radius: 6px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+    
+    .btn-primary {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+    }
+    
+    .btn-primary:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+    }
+    
+    .btn-secondary {
+      background: #f8fafc;
+      color: #64748b;
+      border: 2px solid #e2e8f0;
+      margin-top: 10px;
+    }
+    
+    .btn-secondary:hover {
+      background: #e2e8f0;
+    }
+    
+    .status-message {
+      margin-top: 15px;
+      padding: 12px;
+      border-radius: 6px;
+      font-size: 13px;
+      text-align: center;
+      display: none;
+    }
+    
+    .status-message.success {
+      background: #dcfce7;
+      color: #16a34a;
+      border: 1px solid #86efac;
+    }
+    
+    .status-message.error {
+      background: #fee2e2;
+      color: #dc2626;
+      border: 1px solid #fca5a5;
+    }
+    
+    .current-status {
+      margin-top: 15px;
+      padding: 12px;
+      background: #f1f5f9;
+      border-radius: 6px;
+      font-size: 13px;
+    }
+    
+    .current-status .label {
+      font-weight: 600;
+      color: #475569;
+    }
+    
+    .current-status .value {
+      color: #22c55e;
+      font-weight: 600;
+    }
+    
+    .current-status .value.disabled {
+      color: #f59e0b;
+    }
+    
+    a {
+      color: #667eea;
+      text-decoration: none;
+    }
+    
+    a:hover {
+      text-decoration: underline;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>⚙️ Configuración Gemini IA</h1>
+    
+    <!-- INFO -->
+    <div class="section">
+      <div class="info-box">
+        <strong>🤖 US#121 - IA Ligera (FASE 1)</strong><br>
+        Gemini Flash 8B realiza pre-análisis rápido de eventos capturados:
+        <ul style="margin-top: 8px; padding-left: 20px;">
+          <li>Pre-ranking de selectores</li>
+          <li>Detección de flujo de ventanas</li>
+          <li>Clasificación de intenciones</li>
+        </ul>
+        <br>
+        <strong>📍 Obtén tu API key gratis:</strong><br>
+        <a href="https://aistudio.google.com/apikey" target="_blank">https://aistudio.google.com/apikey</a>
+      </div>
+    </div>
+    
+    <!-- FORMULARIO -->
+    <div class="section">
+      <div class="section-title">
+        <span>🔑</span>
+        <span>API Key de Gemini</span>
+      </div>
+      
+      <label for="api-key">Ingresa tu API Key:</label>
+      <input 
+        type="password" 
+        id="api-key" 
+        placeholder="AIzaSy..."
+        autocomplete="off"
+      >
+      
+      <button class="btn btn-primary" id="btn-save">
+        <span>💾</span>
+        <span>Guardar API Key</span>
+      </button>
+      
+      <button class="btn btn-secondary" id="btn-clear">
+        <span>🗑️</span>
+        <span>Eliminar API Key</span>
+      </button>
+      
+      <!-- STATUS MESSAGE -->
+      <div class="status-message" id="status-message"></div>
+    </div>
+    
+    <!-- ESTADO ACTUAL -->
+    <div class="section">
+      <div class="section-title">
+        <span>📊</span>
+        <span>Estado Actual</span>
+      </div>
+      
+      <div class="current-status">
+        <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+          <span class="label">Gemini IA:</span>
+          <span class="value" id="current-status">⏳ Verificando...</span>
+        </div>
+        <div style="display: flex; justify-content: space-between;">
+          <span class="label">API Key configurada:</span>
+          <span class="value" id="api-key-status">⏳</span>
+        </div>
+      </div>
+    </div>
+    
+    <!-- NOTAS -->
+    <div class="section">
+      <div class="info-box">
+        <strong>⚠️ Importante:</strong><br>
+        • Sin API key, la extensión usa <code>fallback</code> (análisis básico sin IA)<br>
+        • La extensión NO envía tu API key a servidores externos<br>
+        • Se almacena localmente en Chrome Sync Storage
+      </div>
+    </div>
+  </div>
+  
+  <script src="config.js"></script>
+</body>
+</html>
