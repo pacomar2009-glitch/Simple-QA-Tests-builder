@@ -534,7 +534,7 @@ function captureDebuggerEvent(event) {
 
 // 📥 US#92 - EXPORT Y DESCARGA DE ZIP
 async function handleExportZIP(sendResponse) {
-  console.log('📥 Iniciando export ZIP...');
+  console.log('📥 Iniciando export JSON...');
   
   try {
     // 1. Obtener datos de exportación
@@ -569,7 +569,7 @@ async function handleExportZIP(sendResponse) {
             error: chrome.runtime.lastError.message 
           });
         } else {
-          console.log(`✅ ZIP exportado: ${result.filename} (${result.size} bytes)`);
+          console.log(`✅ JSON exportado: ${result.filename} (${result.size} bytes)`);
           sendResponse({ 
             success: true, 
             filename: result.filename,
