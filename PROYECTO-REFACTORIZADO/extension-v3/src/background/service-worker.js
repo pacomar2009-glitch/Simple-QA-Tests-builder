@@ -235,8 +235,8 @@ async function startRecording(tabId) {
     // 📋 US#57: Iniciar grabación del caso
     await state.casesQueue.startRecordingCase(newCase.id);
     
-    // 2. Adjuntar Chrome Debugger (MCP Chrome DevTools)
-    await attachDebugger(tabId);
+    // US#124: Debugger DESACTIVADO para capture-only (solo content script)
+    // await attachDebugger(tabId); // COMENTADO: No necesario sin IA
     
     // 3. Actualizar estado
     state.isRecording = true;
@@ -301,10 +301,10 @@ async function stopRecording() {
     // 📋 US#57: Obtener caso actual antes de completarlo
     const currentCase = state.casesQueue.getCurrentCase();
     
-    // 1. Detach debugger
-    if (state.debuggerAttached && state.currentTabId) {
-      await detachDebugger(state.currentTabId);
-    }
+    // US#124: Debugger DESACTIVADO (no detach necesario)
+    // if (state.debuggerAttached && state.currentTabId) {
+    //   await detachDebugger(state.currentTabId);
+    // }
     
     // 2. Notificar content script
     if (state.currentTabId) {
@@ -527,19 +527,18 @@ async function captureUserAction(action) {
   });
 }
 
-// 📝 CAPTURAR EVENTO DEL DEBUGGER (FILTRADO)
+// 📝 CAPTURAR EVENTO DEL DEBUGGER (ULTRA-FILTRADO para capture-only)
 function captureDebuggerEvent(event) {
-  // ✅ FILTRO: Solo eventos críticos de navegación/red
+  // ✅ US#124: Solo eventos críticos de NAVEGACIÓN (no red)
+  // Network events causan 170+ eventos por 2 clicks → REMOVIDOS
   const RELEVANT_DEBUGGER_EVENTS = [
-    'Network.requestWillBeSent',
-    'Network.responseReceived',
     'Page.loadEventFired',
     'Page.frameNavigated',
     'Page.domContentEventFired'
   ];
   
   if (event.method && !RELEVANT_DEBUGGER_EVENTS.includes(event.method)) {
-    return; // Ignorar eventos de debugger irrelevantes
+    return; // Ignorar red y otros eventos innecesarios
   }
   
   const capturedEvent = {

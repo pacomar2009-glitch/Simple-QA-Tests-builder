@@ -45,10 +45,18 @@ function startCapture(newSessionId) {
   
   // Adjuntar listeners de eventos
   document.addEventListener('click', handleClick, true);
+  document.addEventListener('dblclick', handleDoubleClick, true); // Doble click
+  document.addEventListener('contextmenu', handleContextMenu, true); // Click derecho
   document.addEventListener('input', handleInput, true);
   document.addEventListener('change', handleChange, true);
   document.addEventListener('submit', handleSubmit, true);
   document.addEventListener('keydown', handleKeyDown, true);
+  document.addEventListener('scroll', handleScroll, true); // Scroll
+  document.addEventListener('mouseover', handleHover, true); // Hover
+  document.addEventListener('focus', handleFocus, true); // Focus
+  document.addEventListener('blur', handleBlur, true); // Blur
+  document.addEventListener('dragstart', handleDragStart, true); // Drag
+  document.addEventListener('drop', handleDrop, true); // Drop
   
   // Visual feedback
   showRecordingIndicator();
@@ -65,10 +73,18 @@ function stopCapture() {
   
   // Remover listeners
   document.removeEventListener('click', handleClick, true);
+  document.removeEventListener('dblclick', handleDoubleClick, true);
+  document.removeEventListener('contextmenu', handleContextMenu, true);
   document.removeEventListener('input', handleInput, true);
   document.removeEventListener('change', handleChange, true);
   document.removeEventListener('submit', handleSubmit, true);
   document.removeEventListener('keydown', handleKeyDown, true);
+  document.removeEventListener('scroll', handleScroll, true);
+  document.removeEventListener('mouseover', handleHover, true);
+  document.removeEventListener('focus', handleFocus, true);
+  document.removeEventListener('blur', handleBlur, true);
+  document.removeEventListener('dragstart', handleDragStart, true);
+  document.removeEventListener('drop', handleDrop, true);
   
   // Ocultar indicador
   hideRecordingIndicator();
@@ -180,7 +196,148 @@ function handleKeyDown(event) {
   }
 }
 
-// 🔍 GENERAR SELECTOR CSS (US#56: Ranking de selectores)
+// �️ HANDLE DOUBLE CLICK
+function handleDoubleClick(event) {
+  if (!isCapturing) return;
+  
+  const action = {
+    type: 'dblclick',
+    timestamp: Date.now(),
+    selector: generateSelector(event.target),
+    tagName: event.target.tagName,
+    text: event.target.textContent?.substring(0, 100),
+    url: window.location.href
+  };
+  
+  sendActionToBackground(action);
+}
+
+// 🖱️ HANDLE CONTEXT MENU (right-click)
+function handleContextMenu(event) {
+  if (!isCapturing) return;
+  
+  const action = {
+    type: 'contextmenu',
+    timestamp: Date.now(),
+    selector: generateSelector(event.target),
+    tagName: event.target.tagName,
+    text: event.target.textContent?.substring(0, 100),
+    url: window.location.href
+  };
+  
+  sendActionToBackground(action);
+}
+
+// 📜 HANDLE SCROLL (debounced to avoid flooding)
+let scrollTimeout;
+function handleScroll(event) {
+  if (!isCapturing) return;
+  
+  // Debounce: solo capturar después de 500ms sin scroll
+  clearTimeout(scrollTimeout);
+  scrollTimeout = setTimeout(() => {
+    const action = {
+      type: 'scroll',
+      timestamp: Date.now(),
+      scrollX: window.scrollX,
+      scrollY: window.scrollY,
+      url: window.location.href
+    };
+    
+    sendActionToBackground(action);
+  }, 500);
+}
+
+// 🎯 HANDLE HOVER (throttled to avoid excessive events)
+let lastHoverTime = 0;
+function handleHover(event) {
+  if (!isCapturing) return;
+  
+  const now = Date.now();
+  
+  // Throttle: solo capturar cada 1000ms
+  if (now - lastHoverTime < 1000) return;
+  
+  lastHoverTime = now;
+  
+  // Solo capturar hover sobre elementos interactivos
+  const interactiveElements = ['BUTTON', 'A', 'INPUT', 'SELECT', 'TEXTAREA', 'DIV'];
+  if (!interactiveElements.includes(event.target.tagName)) return;
+  
+  const action = {
+    type: 'hover',
+    timestamp: now,
+    selector: generateSelector(event.target),
+    tagName: event.target.tagName,
+    text: event.target.textContent?.substring(0, 100),
+    url: window.location.href
+  };
+  
+  sendActionToBackground(action);
+}
+
+// 🎯 HANDLE FOCUS
+function handleFocus(event) {
+  if (!isCapturing) return;
+  
+  const action = {
+    type: 'focus',
+    timestamp: Date.now(),
+    selector: generateSelector(event.target),
+    tagName: event.target.tagName,
+    url: window.location.href
+  };
+  
+  sendActionToBackground(action);
+}
+
+// 🎯 HANDLE BLUR
+function handleBlur(event) {
+  if (!isCapturing) return;
+  
+  const action = {
+    type: 'blur',
+    timestamp: Date.now(),
+    selector: generateSelector(event.target),
+    tagName: event.target.tagName,
+    url: window.location.href
+  };
+  
+  sendActionToBackground(action);
+}
+
+// 🖱️ HANDLE DRAG START
+function handleDragStart(event) {
+  if (!isCapturing) return;
+  
+  const action = {
+    type: 'dragstart',
+    timestamp: Date.now(),
+    selector: generateSelector(event.target),
+    tagName: event.target.tagName,
+    text: event.target.textContent?.substring(0, 100),
+    url: window.location.href
+  };
+  
+  sendActionToBackground(action);
+}
+
+// 🖱️ HANDLE DROP
+function handleDrop(event) {
+  if (!isCapturing) return;
+  
+  const action = {
+    type: 'drop',
+    timestamp: Date.now(),
+    selector: generateSelector(event.target),
+    tagName: event.target.tagName,
+    url: window.location.href
+  };
+  
+  sendActionToBackground(action);
+}
+
+// �🔍 GENERAR SELECTOR CSS (US#56: Ranking de selectores)
 function generateSelector(element) {
   // Prioridad: id > name > data-testid > clase única > xpath
   
