@@ -353,6 +353,7 @@ async function stopRecording() {
     if (currentCase) {
       await state.casesQueue.stopCurrentCase();
       console.log(`✅ Caso #${currentCase.number} completado con ${currentCase.steps.length} pasos`);
+      console.log(`📊 Stats después de completar:`, state.casesQueue.getStats());
     }
     
     console.log(`✅ Grabación detenida - ${state.capturedEvents.length} eventos capturados`);

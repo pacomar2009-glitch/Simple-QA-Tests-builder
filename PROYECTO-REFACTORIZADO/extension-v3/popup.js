@@ -154,12 +154,8 @@ async function handleStop() {
     if (response.success) {
       console.log('✅ Grabación detenida:', response);
       
-      // Actualizar estado
-      currentState.isRecording = false;
-      currentState.sessionId = null;
-      currentState.eventsCount = 0;
-      
-      renderState();
+      // Actualizar estado completo (incluyendo casesStats)
+      await updateState();
       
       // Mostrar notificación con stats
       showNotification(
