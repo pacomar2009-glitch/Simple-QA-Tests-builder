@@ -308,9 +308,13 @@ export class CasesQueueManager {
   /**
    * Exportar datos de cola (para US#92)
    */
-  exportData() {
+  exportData(onlyCompleted = false) {
+    const casesToExport = onlyCompleted 
+      ? this.cases.filter(c => c.status === 'completed')
+      : this.cases;
+    
     return {
-      cases: this.cases,
+      cases: casesToExport,
       currentCaseId: this.currentCaseId,
       stats: this.getStats(),
       exportedAt: new Date().toISOString()

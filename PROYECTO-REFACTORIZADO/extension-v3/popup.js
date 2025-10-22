@@ -9,11 +9,18 @@ const btnStop = document.getElementById('btn-stop');
 const btnExport = document.getElementById('btn-export'); // US#92
 const btnConfig = document.getElementById('btn-config'); // US#121
 const btnClear = document.getElementById('btn-clear'); // CLEAR/RESET
+const btnGenerate = document.getElementById('btn-generate'); // MCP GENERATE
 const statusEl = document.getElementById('status');
 const eventsCountEl = document.getElementById('events-count');
 const sessionIdEl = document.getElementById('session-id');
 const casesCountEl = document.getElementById('cases-count'); // US#57
 const casesCompletedEl = document.getElementById('cases-completed'); // US#57
+const generationProgress = document.getElementById('generation-progress');
+const progressBar = document.getElementById('progress-bar');
+const progressText = document.getElementById('progress-text');
+const progressLogs = document.getElementById('progress-logs');
+const testPreview = document.getElementById('test-preview');
+const testCodePreview = document.getElementById('test-code-preview');
 
 // Estado local
 let currentState = {
@@ -36,6 +43,7 @@ async function init() {
   btnExport.addEventListener('click', handleExport); // US#92
   btnConfig.addEventListener('click', handleConfig); // US#121
   btnClear.addEventListener('click', handleClear); // CLEAR/RESET
+  btnGenerate.addEventListener('click', handleGenerateTest); // MCP GENERATE
   
   console.log('✅ Popup inicializado');
 }
@@ -68,6 +76,10 @@ function renderState() {
   // US#92: Habilitar botón de export solo si hay casos
   const hasCases = (currentState.casesStats?.total || 0) > 0;
   btnExport.disabled = !hasCases || currentState.isRecording;
+  
+  // MCP GENERATE: Habilitar solo si hay casos completados y NO está grabando
+  const hasCompletedCases = (currentState.casesStats?.completed || 0) > 0;
+  btnGenerate.disabled = !hasCompletedCases || currentState.isRecording;
   
   if (currentState.isRecording) {
     // GRABANDO
@@ -274,6 +286,182 @@ function showNotification(message, type = 'info') {
     setTimeout(() => {
       renderState();
     }, 1000);
+  }
+}
+
+// 🎭 HANDLE GENERATE TEST (MCP PLAYWRIGHT)
+async function handleGenerateTest() {
+  console.log('🎭 Generando test con MCP Playwright...');
+  
+  btnGenerate.disabled = true;
+  
+  try {
+    // Obtener casos exportables
+    const exportResponse = await chrome.runtime.sendMessage({ type: 'EXPORT_CASES' });
+    
+    console.log('📦 Export response:', exportResponse);
+    
+    if (!exportResponse.success || !exportResponse.cases || exportResponse.cases.length === 0) {
+      showNotification('No hay casos completados para generar test', 'warning');
+      btnGenerate.disabled = false;
+      return;
+    }
+    
+    // Tomar el último caso completado
+    const lastCase = exportResponse.cases[exportResponse.cases.length - 1];
+    
+    console.log('📝 Caso seleccionado:', lastCase.name, '- Pasos:', lastCase.steps?.length);
+    
+    if (!lastCase.steps || lastCase.steps.length === 0) {
+      showNotification('El caso no tiene pasos capturados', 'warning');
+      btnGenerate.disabled = false;
+      return;
+    }
+    
+    // Mostrar panel de progreso
+    generationProgress.style.display = 'block';
+    progressBar.style.width = '0%';
+    progressText.textContent = 'Conectando con backend...';
+    progressLogs.innerHTML = '<div style="color: #9CA3AF;">🔌 Conectando...</div>';
+    testPreview.style.display = 'none';
+    
+    // Obtener backend URL de storage
+    const backendConfig = await chrome.storage.sync.get(['backendUrl']);
+    const backendUrl = backendConfig.backendUrl || 'http://localhost:4000';
+    
+    // Preparar payload
+    const payload = {
+      sessionId: lastCase.id,
+      steps: lastCase.steps,
+      metadata: {
+        sessionName: lastCase.name,
+        initialUrl: lastCase.initialUrl,
+        description: lastCase.description
+      }
+    };
+    
+    // Conectar con SSE (Server-Sent Events)
+    const eventSource = new EventSource(`${backendUrl}/test-generation/mcp-generate`);
+    
+    // NO funciona EventSource con POST, usar fetch con streaming
+    const response = await fetch(`${backendUrl}/test-generation/mcp-generate`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'text/event-stream'
+      },
+      body: JSON.stringify(payload)
+    });
+    
+    if (!response.ok) {
+      throw new Error(`Backend error: ${response.statusText}`);
+    }
+    
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    
+    // Leer stream
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      
+      const chunk = decoder.decode(value);
+      const lines = chunk.split('\n');
+      
+      for (const line of lines) {
+        if (line.startsWith('data: ')) {
+          const data = JSON.parse(line.substring(6));
+          handleProgressUpdate(data);
+        }
+      }
+    }
+    
+    showNotification('✅ Test generado exitosamente', 'success');
+    
+  } catch (error) {
+    console.error('❌ Error generando test:', error);
+    showNotification(`Error: ${error.message}`, 'error');
+    
+    // Mostrar error en logs
+    const errorDiv = document.createElement('div');
+    errorDiv.style.color = '#EF4444';
+    errorDiv.textContent = `❌ ${error.message}`;
+    progressLogs.appendChild(errorDiv);
+    
+  } finally {
+    btnGenerate.disabled = false;
+  }
+}
+
+// 📊 HANDLE PROGRESS UPDATE (SSE)
+function handleProgressUpdate(data) {
+  const { phase, message, progress, data: additionalData, error } = data;
+  
+  // Actualizar progress bar
+  if (progress !== undefined) {
+    progressBar.style.width = `${progress}%`;
+    progressText.textContent = `${progress}% - ${message}`;
+  }
+  
+  // Agregar log
+  const logDiv = document.createElement('div');
+  logDiv.style.marginBottom = '5px';
+  
+  // Color según fase
+  let color = '#6B7280';
+  let icon = '•';
+  
+  switch (phase) {
+    case 'analyzing':
+      color = '#3B82F6';
+      icon = '🔍';
+      break;
+    case 'browser_start':
+      color = '#8B5CF6';
+      icon = '🌐';
+      break;
+    case 'reproducing':
+      color = '#F59E0B';
+      icon = '🎬';
+      break;
+    case 'generating_code':
+      color = '#10B981';
+      icon = '✍️';
+      break;
+    case 'saving':
+      color = '#06B6D4';
+      icon = '💾';
+      break;
+    case 'completed':
+      color = '#10B981';
+      icon = '✅';
+      break;
+    case 'error':
+      color = '#EF4444';
+      icon = '❌';
+      break;
+  }
+  
+  logDiv.style.color = color;
+  logDiv.innerHTML = `<strong>${icon}</strong> ${message}`;
+  progressLogs.appendChild(logDiv);
+  
+  // Auto-scroll
+  progressLogs.scrollTop = progressLogs.scrollHeight;
+  
+  // Mostrar preview si está completo
+  if (phase === 'completed' && additionalData && additionalData.result) {
+    testPreview.style.display = 'block';
+    testCodePreview.textContent = additionalData.result.testCode || 'Test generado ✅';
+  }
+  
+  // Si es flujo, mostrar detalles
+  if (phase === 'analyzing' && additionalData && additionalData.flows) {
+    const flowDiv = document.createElement('div');
+    flowDiv.style.color = '#6B7280';
+    flowDiv.style.marginLeft = '20px';
+    flowDiv.innerHTML = additionalData.flows.map(f => `  • ${f.name}`).join('<br>');
+    progressLogs.appendChild(flowDiv);
   }
 }
 

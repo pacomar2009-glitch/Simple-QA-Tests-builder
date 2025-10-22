@@ -174,6 +174,21 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       });
       return false;
       
+    case 'EXPORT_CASES':
+      // 📤 EXPORTAR CASOS (para generación de tests)
+      const exportData = state.casesQueue.exportData(true); // Solo completados
+      console.log('📤 Exportando casos:', exportData.cases.length);
+      sendResponse({ 
+        success: true, 
+        cases: exportData.cases, // Directamente el array
+        metadata: {
+          exportedAt: exportData.exportedAt,
+          totalCases: exportData.cases.length,
+          stats: exportData.stats
+        }
+      });
+      return false;
+      
     case 'CLEAR_ALL_CASES':
       // 🗑️ LIMPIAR TODOS LOS CASOS
       state.casesQueue.clearAllCases()
