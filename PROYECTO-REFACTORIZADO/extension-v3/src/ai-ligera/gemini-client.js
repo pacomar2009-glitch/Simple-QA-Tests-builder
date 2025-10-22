@@ -205,14 +205,32 @@ export class GeminiAIClient {
       
       // Validar respuesta con chequeos completos
       if (!result.candidates || result.candidates.length === 0) {
-        console.error('❌ Respuesta vacía de Gemini');
+        console.error('❌ Respuesta vacía de Gemini:', JSON.stringify(result, null, 2));
+        
+        // Verificar si hay error de safety
+        if (result.promptFeedback && result.promptFeedback.blockReason) {
+          console.error('🚫 Gemini bloqueó el prompt:', result.promptFeedback.blockReason);
+        }
+        
         return this.fallbackAnalysis(elementData, pageContext);
       }
       
       // Validar estructura del candidato antes de acceder
       const candidate = result.candidates[0];
+      
+      // Chequear finishReason para detectar bloqueos
+      if (candidate.finishReason && candidate.finishReason !== 'STOP') {
+        console.warn('⚠️ Gemini finalizó con razón:', candidate.finishReason);
+        if (candidate.finishReason === 'SAFETY' || candidate.finishReason === 'RECITATION') {
+          console.error('🚫 Respuesta bloqueada por safety o recitación');
+          return this.fallbackAnalysis(elementData, pageContext);
+        }
+      }
+      
       if (!candidate || !candidate.content || !candidate.content.parts || candidate.content.parts.length === 0) {
         console.error('❌ Estructura de respuesta inválida de Gemini');
+        console.error('Candidate recibido:', JSON.stringify(candidate, null, 2));
+        console.error('Respuesta completa:', JSON.stringify(result, null, 2));
         return this.fallbackAnalysis(elementData, pageContext);
       }
       
