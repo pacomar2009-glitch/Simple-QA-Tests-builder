@@ -250,39 +250,19 @@ async function startRecording(tabId) {
     
     // 6. Badge visual con número de caso (US#57) - GLOBAL (sin tabId para persistir)
     const badgeText = `#${newCase.number}`;
-    const geminiEnabled = state.geminiAI?.isInitialized || false;
-    const badgeColor = geminiEnabled ? '#FF0000' : '#f59e0b'; // Naranja si es fallback
-    
     await chrome.action.setBadgeText({ text: badgeText }); // SIN tabId = global
-    await chrome.action.setBadgeBackgroundColor({ color: badgeColor }); // SIN tabId = global
+    await chrome.action.setBadgeBackgroundColor({ color: '#FF0000' }); // US#124: Siempre rojo (capture-only)
     
     console.log(`✅ Grabación iniciada - Case: #${newCase.number} - Session: ${state.sessionId}`);
-    
-    // 🚨 US#121 FIX: Notificación explícita si está en modo fallback
-    if (!geminiEnabled) {
-      console.warn('⚠️ MODO FALLBACK ACTIVO: Gemini IA no disponible. Usando análisis heurístico básico.');
-      console.warn('   → Configura API key en: chrome-extension://' + chrome.runtime.id + '/config.html');
-      
-      // Mostrar notificación al usuario (sin iconUrl para evitar errores)
-      try {
-        await chrome.notifications.create('fallback-warning', {
-          type: 'basic',
-          title: '⚠️ Grabación en Modo Fallback',
-          message: 'Gemini IA no disponible. Usando análisis básico sin IA.\n\nConfigura tu API key para pre-análisis inteligente.',
-          priority: 1,
-          requireInteraction: false
-        });
-        console.log('✅ Notificación de fallback mostrada');
-      } catch (notifError) {
-        console.error('❌ Error creando notificación de fallback:', notifError);
-      }
-    }
+    console.log(`� US#124: CAPTURE-ONLY MODE (no AI processing in extension)`);
+    console.log(`   → Backend (port 4000) procesará con Single-Pass AI`);
+    console.log(`   → Configura API key en: chrome-extension://${chrome.runtime.id}/config.html`);
     
     return {
       success: true,
       sessionId: state.sessionId,
       tabId,
-      geminiEnabled, // Informar al popup del modo actual
+      captureMode: 'RAW_CAPTURE', // US#124: Capture-only mode
       caseId: newCase.id, // US#57: Incluir ID del caso
       caseNumber: newCase.number // US#57: Incluir número del caso
     };
