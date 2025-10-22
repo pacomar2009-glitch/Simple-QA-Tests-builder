@@ -180,10 +180,11 @@ export class GeminiAIClient {
               parts: [{ text: prompt }]
             }],
             generationConfig: {
-              temperature: 0.1, // Muy baja para respuestas consistentes
-              maxOutputTokens: 300, // Límite bajo para respuesta rápida
-              topP: 0.8,
-              topK: 10
+              temperature: 0.0, // Determinístico para JSON consistente
+              maxOutputTokens: 400, // Suficiente para JSON estructurado
+              topP: 0.95,
+              topK: 40,
+              candidateCount: 1 // Solo una respuesta
             },
             safetySettings: [
               {
@@ -236,17 +237,21 @@ export class GeminiAIClient {
       
       const analysisText = candidate.content.parts[0].text;
       
-      // Limpiar markdown code blocks si existen
-      const cleanedText = analysisText
-        .replace(/```json\n?/g, '')
-        .replace(/```\n?/g, '')
-        .trim();
-      
+      // Limpiar y extraer JSON de la respuesta
       let analysis;
       try {
-        analysis = JSON.parse(cleanedText);
+        analysis = this.extractAndParseJSON(analysisText);
       } catch (parseError) {
-        console.error('❌ Error parseando JSON de Gemini:', cleanedText);
+        console.error('❌ Error parseando JSON de Gemini:', parseError.message);
+        console.error('Texto recibido:', analysisText);
+        this.metrics.fallbackCount++;
+        return this.fallbackAnalysis(elementData, pageContext);
+      }
+      
+      // Validar que el análisis tiene campos requeridos
+      if (!this.validateAnalysis(analysis)) {
+        console.error('❌ Análisis de Gemini incompleto:', analysis);
+        this.metrics.fallbackCount++;
         return this.fallbackAnalysis(elementData, pageContext);
       }
       
@@ -278,7 +283,7 @@ export class GeminiAIClient {
    * Construye prompt simplificado para análisis rápido (FASE 1)
    */
   buildLightweightPrompt(elementData, pageContext) {
-    return `Análisis RÁPIDO de evento de usuario (pre-análisis FASE 1):
+    return `Eres un analizador de elementos web. Responde SOLO con JSON válido, sin texto adicional.
 
 ELEMENTO CAPTURADO:
 - Tag: ${elementData.tagName || 'N/A'}
@@ -291,36 +296,24 @@ ELEMENTO CAPTURADO:
 - Type: ${elementData.type || 'N/A'}
 - Name: ${elementData.name || 'N/A'}
 
-CONTEXTO PÁGINA:
+CONTEXTO:
 - URL: ${pageContext.url || 'N/A'}
 - Title: ${pageContext.title || 'N/A'}
 
-TAREAS (RESPUESTAS BREVES):
+TAREA:
+1. Pre-ranking de selectores CSS (ordena por robustez, score 0-100):
+   Prioridad: data-testid > id > aria-label > name > class único
+2. Detecta si abre nueva pestaña (target="_blank")
+3. Clasifica intent en: form_submission, navigation, authentication, search, data_entry, ui_interaction
 
-1. **Pre-ranking selectores** (top 3 más robustos):
-   Analiza atributos disponibles y ordena por robustez (score 0-100).
-   Prioridad: data-testid > id > aria-label > name > text único
-
-2. **Flujo ventanas**:
-   ¿Este elemento abre nueva pestaña? (target="_blank" o similar)
-
-3. **Intención**:
-   Clasifica la acción del usuario en UNA de estas categorías:
-   - form_submission (enviar formulario)
-   - navigation (ir a otra página)
-   - authentication (login/logout)
-   - search (buscar contenido)
-   - data_entry (ingresar datos)
-   - ui_interaction (toggle, expand, etc)
-
-OUTPUT (JSON estricto, SIN explicaciones adicionales):
+IMPORTANTE: Responde SOLO con este JSON, SIN explicaciones ni markdown:
 {
   "selectorPreRanking": [
-    { "selector": "string CSS selector", "score": 0-100, "reason": "breve" }
+    {"selector": "CSS selector string", "score": 100, "reason": "breve"}
   ],
-  "opensNewTab": true/false,
-  "intent": "string (una de las categorías)",
-  "confidence": 0-100
+  "opensNewTab": false,
+  "intent": "navigation",
+  "confidence": 95
 }`;
   }
   
@@ -417,6 +410,88 @@ OUTPUT (JSON estricto, SIN explicaciones adicionales):
     }
     
     this.analysisCache.set(key, value);
+  }
+  
+  /**
+   * Extrae y parsea JSON de texto que puede contener markdown o texto adicional
+   */
+  extractAndParseJSON(text) {
+    // Paso 1: Limpiar markdown code blocks
+    let cleaned = text
+      .replace(/```json\s*/g, '')
+      .replace(/```\s*/g, '')
+      .trim();
+    
+    // Paso 2: Buscar JSON entre llaves
+    const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) {
+      throw new Error('No se encontró JSON válido en la respuesta');
+    }
+    
+    cleaned = jsonMatch[0];
+    
+    // Paso 3: Intentar parsear
+    try {
+      return JSON.parse(cleaned);
+    } catch (e) {
+      // Paso 4: Intentar reparar JSON común (comillas simples, trailing commas, etc)
+      const repaired = cleaned
+        .replace(/'/g, '"')  // Comillas simples a dobles
+        .replace(/,(\s*[}\]])/g, '$1')  // Eliminar trailing commas
+        .replace(/(\w+):/g, '"$1":');  // Agregar comillas a keys sin comillas
+      
+      try {
+        return JSON.parse(repaired);
+      } catch (e2) {
+        throw new Error(`JSON inválido: ${e2.message}`);
+      }
+    }
+  }
+  
+  /**
+   * Valida que el análisis de Gemini tiene todos los campos requeridos
+   */
+  validateAnalysis(analysis) {
+    if (!analysis || typeof analysis !== 'object') {
+      return false;
+    }
+    
+    // Campos obligatorios
+    const required = ['selectorPreRanking', 'opensNewTab', 'intent'];
+    for (const field of required) {
+      if (!(field in analysis)) {
+        console.warn(`⚠️ Campo faltante en análisis: ${field}`);
+        return false;
+      }
+    }
+    
+    // Validar selectorPreRanking es array no vacío
+    if (!Array.isArray(analysis.selectorPreRanking) || analysis.selectorPreRanking.length === 0) {
+      console.warn('⚠️ selectorPreRanking debe ser array no vacío');
+      return false;
+    }
+    
+    // Validar cada selector tiene campos necesarios
+    for (const sel of analysis.selectorPreRanking) {
+      if (!sel.selector || typeof sel.score !== 'number') {
+        console.warn('⚠️ Selector inválido en preRanking:', sel);
+        return false;
+      }
+    }
+    
+    // Validar opensNewTab es boolean
+    if (typeof analysis.opensNewTab !== 'boolean') {
+      console.warn('⚠️ opensNewTab debe ser boolean');
+      return false;
+    }
+    
+    // Validar intent es string no vacío
+    if (typeof analysis.intent !== 'string' || analysis.intent.trim() === '') {
+      console.warn('⚠️ intent debe ser string no vacío');
+      return false;
+    }
+    
+    return true;
   }
   
   /**
