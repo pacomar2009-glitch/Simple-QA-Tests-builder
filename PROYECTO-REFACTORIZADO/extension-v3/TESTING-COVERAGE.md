@@ -3,10 +3,11 @@
 ## 🎯 Resumen General
 
 ```
-Test Suites: 5 passed, 5 total
-Tests:       95 passed, 95 total
-Time:        ~5.5 seconds
+Test Suites: 6 passed, 6 total
+Tests:       133 passed, 133 total
+Time:        ~4.7 seconds
 Global Coverage: 31.2%
+HTML Report: coverage/lcov-report/index.html
 ```
 
 ## 📈 Cobertura por Archivo
@@ -231,6 +232,81 @@ Global Coverage: 31.2%
   - ✅ Show config link in fallback warning
 
 **Tipo**: DOM tests con jsdom
+
+---
+
+### 6. capture.test.js (37 tests) ✅
+**Archivo**: `src/content/capture.js`  
+**User Story**: US#120 + US#55 - Captura de Eventos de Usuario
+
+#### Tests Implementados:
+- **Message Handling** (4 tests)
+  - ✅ Register message listener on load
+  - ✅ Respond to RECORDING_STARTED message
+  - ✅ Respond to RECORDING_STOPPED message
+  - ✅ Handle unknown message type
+
+- **Start Capture** (3 tests)
+  - ✅ Attach event listeners when starting capture
+  - ✅ Set capturing state
+  - ✅ Create recording indicator
+
+- **Stop Capture** (3 tests)
+  - ✅ Remove event listeners when stopping
+  - ✅ Clear capturing state
+  - ✅ Remove recording indicator
+
+- **Click Event Handling** (2 tests)
+  - ✅ Capture click event with correct data
+  - ✅ Not capture click when not capturing
+
+- **Input Event Handling** (3 tests)
+  - ✅ Capture input event for text fields
+  - ✅ Redact password input values
+  - ✅ Capture input with selector fallback
+
+- **Change Event Handling** (2 tests)
+  - ✅ Capture checkbox change
+  - ✅ Capture select change
+
+- **Submit Event Handling** (1 test)
+  - ✅ Capture form submit
+
+- **KeyDown Event Handling** (3 tests)
+  - ✅ Capture Enter key press
+  - ✅ Capture Tab key press
+  - ✅ Ignore non-important keys
+
+- **Selector Generation** (5 tests)
+  - ✅ Prioritize ID selector
+  - ✅ Use name attribute if no ID
+  - ✅ Use data-testid if no ID or name
+  - ✅ Use class if no better selector
+  - ✅ Fallback to XPath if no other selector
+
+- **XPath Generation** (2 tests)
+  - ✅ Generate XPath with ID
+  - ✅ Generate XPath with index for siblings
+
+- **Attribute Extraction** (3 tests)
+  - ✅ Extract element attributes
+  - ✅ Exclude style attribute
+  - ✅ Exclude very long attribute values
+
+- **Send Action to Background** (2 tests)
+  - ✅ Send action via chrome.runtime.sendMessage
+  - ✅ Handle send message error gracefully
+
+- **Recording Indicator** (3 tests)
+  - ✅ Create indicator with correct styles
+  - ✅ Append indicator to body
+  - ✅ Create pulse animation style
+
+- **Integration Scenarios** (2 tests)
+  - ✅ Handle complete recording session
+  - ✅ Handle multiple events in sequence
+
+**Tipo**: Unit tests con mocks de DOM y Chrome APIs
 
 ---
 
