@@ -121,14 +121,51 @@ async function handleSave() {
     btnSave.disabled = true;
     btnSave.innerHTML = '<span>⏳</span><span>Guardando...</span>';
     
-    // US#124: Solo guardar en storage (sin validación real)
+    // 1. Guardar en storage local (para la extensión)
     await chrome.storage.sync.set({ 
       geminiApiKey: apiKey,
       geminiModel: model
     });
     
-    showMessage('✅ API Key guardada. Backend la usará para Single-Pass processing.', 'success');
-    showTestResult('✅ API Key almacenada localmente', 'success');
+    console.log('✅ API Key guardada en storage');
+    
+    // 2. Enviar al backend para actualizar .env
+    try {
+      const backendConfig = await chrome.storage.sync.get(['backendUrl']);
+      const backendUrl = backendConfig.backendUrl || 'http://localhost:4000';
+      
+      console.log('📡 Enviando API key al backend...');
+      
+      const response = await fetch(`${backendUrl}/config/api-key`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ apiKey })
+      });
+      
+      const result = await response.json();
+      
+      if (result.success) {
+        console.log('✅ Backend actualizado:', result.message);
+        
+        if (result.requiresRestart) {
+          showMessage('✅ API Key guardada. ⚠️ REINICIA EL BACKEND para aplicar cambios.', 'success');
+          showTestResult('⚠️ Recuerda reiniciar el backend (Ctrl+C y npm start)', 'testing');
+        } else {
+          showMessage('✅ API Key guardada y aplicada al backend.', 'success');
+          showTestResult('✅ API Key configurada correctamente', 'success');
+        }
+      } else {
+        console.warn('⚠️ Backend no pudo actualizar:', result.error);
+        showMessage(`✅ API Key guardada localmente. ⚠️ Backend: ${result.error}`, 'success');
+      }
+      
+    } catch (backendError) {
+      console.warn('⚠️ No se pudo conectar al backend:', backendError.message);
+      showMessage('✅ API Key guardada localmente. ⚠️ Backend no disponible - configúrala manualmente en .env', 'success');
+      showTestResult('⚠️ Configura manualmente en gemini-mcp-server/.env', 'testing');
+    }
     
     // Actualizar status
     currentStatus.textContent = '✅ Configurada para backend';

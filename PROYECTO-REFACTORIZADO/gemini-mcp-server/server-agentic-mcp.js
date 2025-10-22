@@ -8,6 +8,25 @@ const { runGeminiAgent } = require('./gemini-agentic-loop');
 const { TestGenerationOrchestrator } = require('./src/orchestrators/test-generation-orchestrator');
 const { MCPPlaywrightGenerator } = require('./src/generators/mcp-playwright-generator');
 
+// ========== MANEJADORES DE ERRORES GLOBALES ==========
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('\n💥 ============ UNHANDLED PROMISE REJECTION ============');
+  console.error('Reason:', reason);
+  console.error('Promise:', promise);
+  console.error('Stack:', reason.stack);
+  console.error('=======================================================\n');
+});
+
+process.on('uncaughtException', (error) => {
+  console.error('\n💥 ============ UNCAUGHT EXCEPTION ============');
+  console.error('Error:', error);
+  console.error('Message:', error.message);
+  console.error('Stack:', error.stack);
+  console.error('==============================================\n');
+  // NO EXIT - para debugging
+  // process.exit(1);
+});
+
 const app = express();
 const PORT = process.env.PORT || 4000;
 
@@ -321,65 +340,167 @@ app.get('/', (req, res) => {
   });
 });
 
-// 🚫 404 Handler
+// 🎭 ENDPOINT MCP PLAYWRIGHT TEST GENERATION (con streaming)
+console.log('\n🔍 ========== DEBUG: Registrando endpoint MCP ==========');
+console.log('🔍 mcpGenerator existe:', !!mcpGenerator);
+console.log('🔍 mcpGenerator es instancia de MCPPlaywrightGenerator:', mcpGenerator?.constructor?.name);
+console.log('🔍 mcpGenerator.generateTestWithMCP existe:', typeof mcpGenerator?.generateTestWithMCP);
+console.log('🔍 ======================================================\n');
+
+app.post('/test-generation/mcp-generate', async (req, res) => {
+  try {
+    console.log('\n🎭 === NUEVA SOLICITUD MCP TEST GENERATION ===');
+    console.log('📦 Body recibido:', req.body ? 'SÍ' : 'NO');
+    console.log('📦 Body keys:', req.body ? Object.keys(req.body) : 'N/A');
+  
+    // Configurar SSE (Server-Sent Events)
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+    res.flushHeaders();
+    
+    console.log('✅ Headers SSE configurados');
+    
+    const { sessionId, steps, metadata = {} } = req.body;
+    
+    console.log('📋 Datos extraídos:', { 
+      sessionId: sessionId?.substring(0, 20), 
+      stepsCount: steps?.length,
+      metadataKeys: Object.keys(metadata)
+    });
+    
+    try {
+      console.log('🚀 Iniciando generación con MCP...');
+      
+      // Callback para streaming de progreso
+      const progressCallback = (progress) => {
+        console.log('📡 Enviando progreso:', progress.phase);
+        res.write(`data: ${JSON.stringify(progress)}\n\n`);
+      };
+      
+      // Generar test con MCP
+      console.log('🔄 Llamando a mcpGenerator.generateTestWithMCP...');
+      const result = await mcpGenerator.generateTestWithMCP({
+        sessionId,
+        steps,
+        metadata
+      }, progressCallback);
+      
+      console.log('✅ Generación completada');
+      
+      // Enviar resultado final
+      res.write(`data: ${JSON.stringify({
+        phase: 'completed',
+        message: '✅ Test generado exitosamente',
+        progress: 100,
+        result
+      })}\n\n`);
+      
+      res.end();
+      
+    } catch (innerError) {
+      console.error('💥 Error INTERNO en MCP generation:', innerError);
+      console.error('💥 Stack:', innerError.stack);
+      res.write(`data: ${JSON.stringify({
+        phase: 'error',
+        message: innerError.message,
+        progress: 0
+      })}\n\n`);
+      res.end();
+    }
+  } catch (outerError) {
+    console.error('💥 Error EXTERNO en endpoint handler:', outerError);
+    console.error('💥 Stack:', outerError.stack);
+    if (!res.headersSent) {
+      res.status(500).json({ 
+        success: false, 
+        error: outerError.message,
+        stack: outerError.stack 
+      });
+    }
+  }
+});
+
+// 🔑 ENDPOINT PARA CONFIGURAR API KEY
+app.post('/config/api-key', async (req, res) => {
+  try {
+    const { apiKey } = req.body;
+    
+    if (!apiKey || typeof apiKey !== 'string') {
+      return res.status(400).json({
+        success: false,
+        error: 'API key requerida'
+      });
+    }
+    
+    // Validación básica
+    if (apiKey.length < 20) {
+      return res.status(400).json({
+        success: false,
+        error: 'API key inválida (muy corta)'
+      });
+    }
+    
+    console.log('🔑 Actualizando API key en .env...');
+    
+    const fs = require('fs');
+    const path = require('path');
+    const envPath = path.join(__dirname, '.env');
+    
+    // Leer archivo .env
+    let envContent = fs.readFileSync(envPath, 'utf8');
+    
+    // Reemplazar o agregar GEMINI_API_KEY
+    if (envContent.includes('GEMINI_API_KEY=')) {
+      envContent = envContent.replace(/GEMINI_API_KEY=.*/g, `GEMINI_API_KEY=${apiKey}`);
+    } else {
+      envContent += `\nGEMINI_API_KEY=${apiKey}\n`;
+    }
+    
+    // Guardar archivo
+    fs.writeFileSync(envPath, envContent, 'utf8');
+    
+    // Actualizar variable de entorno en memoria
+    process.env.GEMINI_API_KEY = apiKey;
+    
+    console.log('✅ API key actualizada correctamente');
+    console.log('⚠️ IMPORTANTE: Reinicia el servidor para aplicar cambios en mcpGenerator');
+    
+    res.json({
+      success: true,
+      message: 'API key guardada. Reinicia el servidor para aplicar cambios.',
+      requiresRestart: true
+    });
+    
+  } catch (error) {
+    console.error('💥 Error actualizando API key:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// 🚫 404 Handler (debe estar DESPUÉS de todos los endpoints)
 app.use((req, res) => {
   res.status(404).json({
     error: 'Endpoint no encontrado',
+    path: req.path,
+    method: req.method,
     availableEndpoints: [
       'POST /agent/run',
+      'POST /test-generation/start',
+      'POST /test-generation/mcp-generate',
+      'GET /test-generation/status/:jobId',
+      'GET /test-generation/stats',
+      'POST /config/api-key',
       'GET /health',
       'GET /'
     ]
   });
 });
 
-// 🎭 ENDPOINT MCP PLAYWRIGHT TEST GENERATION (con streaming)
-app.post('/test-generation/mcp-generate', async (req, res) => {
-  console.log('\n🎭 === NUEVA SOLICITUD MCP TEST GENERATION ===');
-  
-  // Configurar SSE (Server-Sent Events)
-  res.setHeader('Content-Type', 'text/event-stream');
-  res.setHeader('Cache-Control', 'no-cache');
-  res.setHeader('Connection', 'keep-alive');
-  res.flushHeaders();
-  
-  const { sessionId, steps, metadata = {} } = req.body;
-  
-  try {
-    // Callback para streaming de progreso
-    const progressCallback = (progress) => {
-      res.write(`data: ${JSON.stringify(progress)}\n\n`);
-    };
-    
-    // Generar test con MCP
-    const result = await mcpGenerator.generateTestWithMCP({
-      sessionId,
-      steps,
-      metadata
-    }, progressCallback);
-    
-    // Enviar resultado final
-    res.write(`data: ${JSON.stringify({
-      phase: 'completed',
-      message: '✅ Test generado exitosamente',
-      progress: 100,
-      result
-    })}\n\n`);
-    
-    res.end();
-    
-  } catch (error) {
-    console.error('💥 Error en MCP generation:', error);
-    res.write(`data: ${JSON.stringify({
-      phase: 'error',
-      message: error.message,
-      progress: 0
-    })}\n\n`);
-    res.end();
-  }
-});
-
-// 💥 Error Handler Global
+// �💥 Error Handler Global
 app.use((error, req, res, next) => {
   console.error('💥 Error no manejado:', error);
   res.status(500).json({
@@ -428,7 +549,11 @@ curl http://localhost:${PORT}/test-generation/status/:jobId
 
 // 🛑 Manejo de señales
 process.on('SIGINT', () => {
-  console.log('\n🛑 Cerrando servidor...');
+  console.log('\n� ============ SIGINT RECIBIDO ============');
+  console.log('Stack trace:');
+  console.trace();
+  console.log('==========================================\n');
+  console.log('\n�🛑 Cerrando servidor...');
   server.close(() => {
     console.log('✅ Servidor cerrado');
     process.exit(0);

@@ -325,7 +325,7 @@ async function handleGenerateTest() {
     const backendConfig = await chrome.storage.sync.get(['backendUrl']);
     const backendUrl = backendConfig.backendUrl || 'http://localhost:4000';
     
-    // Verificar que el backend esté disponible, si no, intentar arrancarlo
+    // Verificar que el backend esté disponible
     try {
       const healthCheck = await fetch(`${backendUrl}/health`, { 
         method: 'GET',
@@ -334,43 +334,27 @@ async function handleGenerateTest() {
       if (!healthCheck.ok) {
         throw new Error('Backend no responde');
       }
+      console.log('✅ Backend disponible');
     } catch (healthError) {
-      console.log('⚠️ Backend no disponible, intentando arrancar automáticamente...');
-      progressText.textContent = '🚀 Arrancando backend...';
+      console.error('❌ Backend no disponible:', healthError);
+      progressText.textContent = '❌ Backend no disponible';
       
-      // Intentar arrancar backend automáticamente
-      const autoStarted = await autoStartBackend();
+      const showHelp = confirm(
+        '❌ Backend no está corriendo\n\n' +
+        'Por favor:\n' +
+        '1. Abre una terminal\n' +
+        '2. cd gemini-mcp-server\n' +
+        '3. npm start\n\n' +
+        '¿Deseas ver instrucciones detalladas?'
+      );
       
-      if (!autoStarted) {
-        // Si falla auto-start, mostrar diálogo de ayuda
-        const showHelp = confirm(
-          '❌ No se pudo arrancar el backend automáticamente\n\n' +
-          'Esto puede deberse a:\n' +
-          '  • Extensión no tiene permisos necesarios\n' +
-          '  • Backend ya está corriendo en otro proceso\n\n' +
-          '¿Deseas ver instrucciones para iniciarlo manualmente?'
-        );
-        
-        if (showHelp) {
-          chrome.tabs.create({
-            url: chrome.runtime.getURL('backend-help.html')
-          });
-        }
-        
-        throw new Error('Backend no disponible. Por favor, inícialo manualmente.');
+      if (showHelp) {
+        chrome.tabs.create({
+          url: chrome.runtime.getURL('backend-help.html')
+        });
       }
       
-      // Esperar a que el backend esté listo (máximo 15s)
-      console.log('⏳ Esperando a que el backend esté listo...');
-      progressText.textContent = '⏳ Esperando backend...';
-      
-      const backendReady = await waitForBackendReady(backendUrl, 15000);
-      
-      if (!backendReady) {
-        throw new Error('❌ Backend arrancado pero no responde. Verifica la consola del servidor.');
-      }
-      
-      console.log('✅ Backend listo y disponible');
+      throw new Error('Backend no disponible. Por favor, inícialo manualmente y vuelve a intentar.');
     }
     
     // Preparar payload
