@@ -492,7 +492,8 @@ Estos tests validan que:
 - US#57: Cambio entre casos sin cerrar popup
 - US#120: Casos persisten en chrome.storage.local
 - US#121: Steps incluyen aiPreAnalysis de Gemini
- 
+
+ 
  
 ### 8. export-utils.test.js (14 tests) 
 **Archivo**: `src/shared/export-utils.js`
@@ -539,29 +540,29 @@ Estos tests validan que:
 -  Generar metadata.json con stats
 -  Generar README.md con instrucciones
 -  Crear carpeta /cases con casos individuales
--  Validación de datos de exportación
+-  Validaciï¿½n de datos de exportaciï¿½n
 -  Timestamp en nombre de archivo
 
-#### Integración:
+#### Integraciï¿½n:
 - **US#57 (CasesQueueManager)**: Obtiene datos via exportData()
 - **service-worker.js**: Handler DOWNLOAD_EXPORT_ZIP
-- **popup.js**: Botón Download ZIP
-- **Chrome Downloads API**: Descarga automática
+- **popup.js**: Botï¿½n Download ZIP
+- **Chrome Downloads API**: Descarga automï¿½tica
 
 ---
 
-##  Próximos Pasos
+##  Prï¿½ximos Pasos
 
 ### Completados :
-- US#120: Base extensión + MCP Chrome DevTools (29 integration tests)
+- US#120: Base extensiï¿½n + MCP Chrome DevTools (29 integration tests)
 - US#121: Gemini IA Ligera (18 unit tests + 11 popup tests)
 - US#57: CasesQueueManager (26 unit + 22 integration = 48 tests)
 - US#55: Content Script - Event Capture (37 unit tests)
-- US#92-MVP: Export ZIP básico (14 tests) ** NUEVO**
+- US#92-MVP: Export ZIP bï¿½sico (14 tests) ** NUEVO**
 
 ### Pendientes :
-- **US#122**: IA Agéntica con MCP Playwright (FASE 2)
-- **US#92-Full**: Export con anonimización y tests Playwright
-- **Popup UI**: Mostrar últimos 3 casos + stats
+- **US#122**: IA Agï¿½ntica con MCP Playwright (FASE 2)
+- **US#92-Full**: Export con anonimizaciï¿½n y tests Playwright
+- **Popup UI**: Mostrar ï¿½ltimos 3 casos + stats
 - **E2E Tests**: Tests con Chrome Extension real
 

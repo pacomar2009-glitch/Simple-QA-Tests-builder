@@ -40,6 +40,17 @@ export class GeminiAIClient {
       return false;
     }
     
+    // Cargar modelo desde storage si está disponible
+    try {
+      const result = await chrome.storage.sync.get(['geminiModel']);
+      if (result.geminiModel) {
+        this.model = result.geminiModel;
+        console.log(`✅ Modelo cargado desde configuración: ${this.model}`);
+      }
+    } catch (error) {
+      console.warn('⚠️ No se pudo cargar modelo desde storage, usando default:', error);
+    }
+    
     this.apiKey = apiKey;
     this.isInitialized = true;
     console.log('✅ Gemini IA Ligera inicializada con API key');
@@ -175,13 +186,20 @@ export class GeminiAIClient {
       
       const result = await response.json();
       
-      // Validar respuesta
+      // Validar respuesta con chequeos completos
       if (!result.candidates || result.candidates.length === 0) {
         console.error('❌ Respuesta vacía de Gemini');
         return this.fallbackAnalysis(elementData, pageContext);
       }
       
-      const analysisText = result.candidates[0].content.parts[0].text;
+      // Validar estructura del candidato antes de acceder
+      const candidate = result.candidates[0];
+      if (!candidate || !candidate.content || !candidate.content.parts || candidate.content.parts.length === 0) {
+        console.error('❌ Estructura de respuesta inválida de Gemini');
+        return this.fallbackAnalysis(elementData, pageContext);
+      }
+      
+      const analysisText = candidate.content.parts[0].text;
       
       // Limpiar markdown code blocks si existen
       const cleanedText = analysisText

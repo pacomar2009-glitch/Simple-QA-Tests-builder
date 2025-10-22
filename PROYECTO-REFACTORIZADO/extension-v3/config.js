@@ -5,6 +5,7 @@ console.log('⚙️ Página de configuración cargada');
 
 // Referencias DOM
 const apiKeyInput = document.getElementById('api-key');
+const modelSelect = document.getElementById('model-select');
 const btnTest = document.getElementById('btn-test');
 const btnSave = document.getElementById('btn-save');
 const btnClear = document.getElementById('btn-clear');
@@ -28,8 +29,8 @@ async function init() {
 // 🔄 Cargar configuración actual
 async function loadCurrentConfig() {
   try {
-    // Obtener API key guardada
-    const result = await chrome.storage.sync.get(['geminiApiKey']);
+    // Obtener API key y modelo guardados
+    const result = await chrome.storage.sync.get(['geminiApiKey', 'geminiModel']);
     
     if (result.geminiApiKey && result.geminiApiKey.trim() !== '') {
       apiKeyInput.value = result.geminiApiKey;
@@ -49,6 +50,13 @@ async function loadCurrentConfig() {
       apiKeyStatus.textContent = '❌ No';
       apiKeyStatus.className = 'value disabled';
     }
+    
+    // Cargar modelo seleccionado (default: gemini-2.5-flash)
+    if (result.geminiModel) {
+      modelSelect.value = result.geminiModel;
+    } else {
+      modelSelect.value = 'gemini-2.5-flash'; // Default
+    }
   } catch (error) {
     console.error('❌ Error cargando config:', error);
     showMessage('Error cargando configuración', 'error');
@@ -58,6 +66,7 @@ async function loadCurrentConfig() {
 // � Probar Conexión (TEST REAL)
 async function handleTest() {
   const apiKey = apiKeyInput.value.trim();
+  const model = modelSelect.value;
   
   if (!apiKey) {
     showTestResult('⚠️ Ingresa una API key primero', 'error');
@@ -73,12 +82,13 @@ async function handleTest() {
   try {
     btnTest.disabled = true;
     btnTest.innerHTML = '<span>⏳</span><span>Probando...</span>';
-    showTestResult('⏳ Probando conexión con Gemini API...', 'testing');
+    showTestResult('⏳ Probando conexión con Gemini API (' + model + ')...', 'testing');
     
     // Llamar al service worker para test real
     const response = await chrome.runtime.sendMessage({
       type: 'CONFIGURE_TEST_GEMINI',
-      apiKey: apiKey
+      apiKey: apiKey,
+      model: model
     });
     
     if (response.success) {
@@ -111,6 +121,7 @@ async function handleTest() {
 // �💾 Guardar API Key (CON VALIDACIÓN)
 async function handleSave() {
   const apiKey = apiKeyInput.value.trim();
+  const model = modelSelect.value;
   
   if (!apiKey) {
     showMessage('⚠️ Ingresa una API key válida', 'error');
@@ -130,7 +141,8 @@ async function handleSave() {
     // PASO 1: VALIDAR API KEY CON TEST REAL
     const testResponse = await chrome.runtime.sendMessage({
       type: 'CONFIGURE_TEST_GEMINI',
-      apiKey: apiKey
+      apiKey: apiKey,
+      model: model
     });
     
     if (!testResponse.success) {
@@ -143,12 +155,16 @@ async function handleSave() {
     // PASO 2: SI ES VÁLIDA, GUARDAR
     btnSave.innerHTML = '<span>⏳</span><span>Guardando...</span>';
     
-    await chrome.storage.sync.set({ geminiApiKey: apiKey });
+    await chrome.storage.sync.set({ 
+      geminiApiKey: apiKey,
+      geminiModel: model
+    });
     
     // Notificar al service worker
     const response = await chrome.runtime.sendMessage({
       type: 'CONFIGURE_GEMINI_API_KEY',
-      apiKey: apiKey
+      apiKey: apiKey,
+      model: model
     });
     
     if (response.success) {

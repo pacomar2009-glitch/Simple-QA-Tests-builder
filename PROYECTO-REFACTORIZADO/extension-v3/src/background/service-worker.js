@@ -111,11 +111,23 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             return;
           }
           
+          // Usar modelo del mensaje o default
+          const modelToTest = message.model || 'gemini-2.5-flash';
+          
+          // Guardar modelo original
+          const originalModel = state.geminiAI.model;
+          
+          // Configurar modelo temporal para test
+          state.geminiAI.model = modelToTest;
+          
           // Inicializar temporalmente con la API key para test
           await state.geminiAI.initialize(message.apiKey);
           
           // Hacer test real de conexión
           const testResult = await state.geminiAI.testConnection();
+          
+          // Restaurar modelo original
+          state.geminiAI.model = originalModel;
           
           sendResponse(testResult);
           
@@ -127,10 +139,17 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       return true;
       
     case 'CONFIGURE_GEMINI_API_KEY':
-      // US#121: Configurar API key de Gemini
-      chrome.storage.sync.set({ geminiApiKey: message.apiKey })
+      // US#121: Configurar API key de Gemini (con modelo)
+      chrome.storage.sync.set({ 
+        geminiApiKey: message.apiKey,
+        geminiModel: message.model || 'gemini-2.5-flash'
+      })
         .then(() => {
           if (state.geminiAI) {
+            // Actualizar modelo si se proporciona
+            if (message.model) {
+              state.geminiAI.model = message.model;
+            }
             return state.geminiAI.initialize(message.apiKey);
           }
         })

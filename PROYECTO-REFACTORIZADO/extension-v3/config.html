@@ -137,6 +137,27 @@
       background: #2563eb;
     }
     
+    .model-select {
+      width: 100%;
+      padding: 12px;
+      border: 2px solid #e2e8f0;
+      border-radius: 8px;
+      font-size: 14px;
+      background: white;
+      cursor: pointer;
+      margin-bottom: 10px;
+      transition: border-color 0.2s;
+    }
+    
+    .model-select:focus {
+      outline: none;
+      border-color: #667eea;
+    }
+    
+    .model-select:hover {
+      border-color: #cbd5e0;
+    }
+    
     .test-result {
       margin-top: 15px;
       padding: 12px;
@@ -253,6 +274,14 @@
         placeholder="AIzaSy..."
         autocomplete="off"
       >
+      
+      <label for="model-select" style="margin-top: 15px;">Modelo Gemini:</label>
+      <select id="model-select" class="model-select">
+        <option value="gemini-2.5-flash">gemini-2.5-flash (Recomendado - Rápido)</option>
+        <option value="gemini-2.0-flash">gemini-2.0-flash (Rápido)</option>
+        <option value="gemini-2.0-flash-lite">gemini-2.0-flash-lite (Ligero)</option>
+        <option value="gemini-flash-latest">gemini-flash-latest (Última versión beta)</option>
+      </select>
       
       <button class="btn btn-test" id="btn-test">
         <span>🔍</span>
