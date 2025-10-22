@@ -325,6 +325,38 @@ async function handleGenerateTest() {
     const backendConfig = await chrome.storage.sync.get(['backendUrl']);
     const backendUrl = backendConfig.backendUrl || 'http://localhost:4000';
     
+    // Verificar que el backend esté disponible, si no, intentar arrancarlo
+    try {
+      const healthCheck = await fetch(`${backendUrl}/health`, { 
+        method: 'GET',
+        signal: AbortSignal.timeout(3000) // 3s timeout
+      });
+      if (!healthCheck.ok) {
+        throw new Error('Backend no responde');
+      }
+    } catch (healthError) {
+      console.log('⚠️ Backend no disponible, verificando auto-start...');
+      progressText.textContent = '� Verificando backend...';
+      
+      // Mostrar diálogo de ayuda
+      const startBackend = confirm(
+        '❌ Backend no disponible en http://localhost:4000\n\n' +
+        '¿Deseas abrir instrucciones para iniciar el servidor?\n\n' +
+        'Necesitas ejecutar:\n' +
+        '  • gemini-mcp-server/START-BACKEND.bat\n' +
+        '  O manualmente: cd gemini-mcp-server && npm start'
+      );
+      
+      if (startBackend) {
+        // Abrir una nueva pestaña con instrucciones
+        chrome.tabs.create({
+          url: chrome.runtime.getURL('backend-help.html')
+        });
+      }
+      
+      throw new Error('Backend no disponible. Inicia el servidor y vuelve a intentar.');
+    }
+    
     // Preparar payload
     const payload = {
       sessionId: lastCase.id,
@@ -336,10 +368,9 @@ async function handleGenerateTest() {
       }
     };
     
-    // Conectar con SSE (Server-Sent Events)
-    const eventSource = new EventSource(`${backendUrl}/test-generation/mcp-generate`);
+    progressText.textContent = 'Enviando datos al backend...';
     
-    // NO funciona EventSource con POST, usar fetch con streaming
+    // Usar fetch con SSE streaming (EventSource no soporta POST)
     const response = await fetch(`${backendUrl}/test-generation/mcp-generate`, {
       method: 'POST',
       headers: {
@@ -461,7 +492,61 @@ function handleProgressUpdate(data) {
   }
 }
 
-// 🔄 POLLING PARA ACTUALIZAR CONTADOR DE EVENTOS (cada 1s mientras graba)
+// � AUTO-START BACKEND
+async function startBackendAutomatically() {
+  try {
+    console.log('🚀 Intentando arrancar backend...');
+    
+    // Enviar mensaje al service worker para que arranque el backend
+    const response = await chrome.runtime.sendMessage({ 
+      type: 'START_BACKEND'
+    });
+    
+    if (response && response.success) {
+      console.log('✅ Backend arrancado:', response.message);
+      return true;
+    }
+    
+    console.warn('⚠️ No se pudo arrancar automáticamente');
+    return false;
+    
+  } catch (error) {
+    console.error('❌ Error arrancando backend:', error);
+    return false;
+  }
+}
+
+// ⏳ WAIT FOR BACKEND
+async function waitForBackend(backendUrl, maxWaitMs = 30000) {
+  const startTime = Date.now();
+  const checkInterval = 1000; // Check cada 1s
+  
+  while (Date.now() - startTime < maxWaitMs) {
+    try {
+      const healthCheck = await fetch(`${backendUrl}/health`, {
+        method: 'GET',
+        signal: AbortSignal.timeout(2000)
+      });
+      
+      if (healthCheck.ok) {
+        return true;
+      }
+    } catch (error) {
+      // Continuar esperando
+    }
+    
+    // Actualizar UI
+    const elapsed = Math.floor((Date.now() - startTime) / 1000);
+    progressText.textContent = `⏳ Esperando backend... (${elapsed}s)`;
+    
+    // Esperar antes del siguiente check
+    await new Promise(resolve => setTimeout(resolve, checkInterval));
+  }
+  
+  return false;
+}
+
+// �🔄 POLLING PARA ACTUALIZAR CONTADOR DE EVENTOS (cada 1s mientras graba)
 setInterval(async () => {
   if (currentState.isRecording) {
     await updateState();

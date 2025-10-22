@@ -189,6 +189,26 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       });
       return false;
       
+    case 'START_BACKEND':
+      // 🚀 ARRANCAR BACKEND AUTOMÁTICAMENTE
+      console.log('🚀 Intentando arrancar backend...');
+      startBackendServer()
+        .then(result => {
+          sendResponse({ 
+            success: result.success, 
+            message: result.message,
+            pid: result.pid
+          });
+        })
+        .catch(error => {
+          console.error('❌ Error arrancando backend:', error);
+          sendResponse({ 
+            success: false, 
+            error: error.message 
+          });
+        });
+      return true;
+      
     case 'CLEAR_ALL_CASES':
       // 🗑️ LIMPIAR TODOS LOS CASOS
       state.casesQueue.clearAllCases()
@@ -623,6 +643,56 @@ async function handleExportZIP(sendResponse) {
       success: false, 
       error: error.message 
     });
+  }
+}
+
+// 🚀 START BACKEND SERVER
+async function startBackendServer() {
+  try {
+    console.log('🚀 Arrancando backend en puerto 4000...');
+    
+    // Usar chrome.runtime.sendNativeMessage para ejecutar script nativo
+    // O usar fetch con un endpoint de auto-start si el backend lo soporta
+    
+    // Alternativa: usar el backend con auto-restart o PM2
+    // Por ahora, intentamos hacer un "wake-up call" al endpoint
+    
+    // Opción 1: Intentar POST a un endpoint de bootstrap
+    try {
+      const response = await fetch('http://localhost:4000/bootstrap', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ autoStart: true })
+      });
+      
+      if (response.ok) {
+        return { 
+          success: true, 
+          message: 'Backend activado vía bootstrap' 
+        };
+      }
+    } catch (e) {
+      // Continuar con otras opciones
+    }
+    
+    // Opción 2: Usar Native Messaging para ejecutar .bat
+    // Esto requiere un manifest de native messaging configurado
+    
+    // Opción 3: Instrucciones al usuario (fallback)
+    console.warn('⚠️ No se puede arrancar automáticamente desde extensión');
+    console.log('💡 El usuario debe ejecutar: START-BACKEND.bat');
+    
+    return { 
+      success: false, 
+      message: 'Auto-start no disponible. Ejecuta START-BACKEND.bat manualmente.' 
+    };
+    
+  } catch (error) {
+    console.error('❌ Error en startBackendServer:', error);
+    return { 
+      success: false, 
+      message: error.message 
+    };
   }
 }
 
