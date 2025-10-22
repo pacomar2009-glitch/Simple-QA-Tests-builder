@@ -181,10 +181,15 @@ export class GeminiAIClient {
             }],
             generationConfig: {
               temperature: 0.0, // Determinístico para JSON consistente
-              maxOutputTokens: 400, // Suficiente para JSON estructurado
+              maxOutputTokens: 800, // Suficiente incluso con thinking (antes 500)
               topP: 0.95,
               topK: 40,
-              candidateCount: 1 // Solo una respuesta
+              candidateCount: 1, // Solo una respuesta
+              responseModalities: ["TEXT"] // Solo texto, no otros formatos
+            },
+            // CRÍTICO: Deshabilitar modo "thinking" para no desperdiciar tokens
+            systemInstruction: {
+              parts: [{ text: "Responde SOLO con JSON válido. NO expliques tu razonamiento." }]
             },
             safetySettings: [
               {
@@ -219,11 +224,19 @@ export class GeminiAIClient {
       // Validar estructura del candidato antes de acceder
       const candidate = result.candidates[0];
       
-      // Chequear finishReason para detectar bloqueos
+      // Chequear finishReason para detectar bloqueos o límites
       if (candidate.finishReason && candidate.finishReason !== 'STOP') {
         console.warn('⚠️ Gemini finalizó con razón:', candidate.finishReason);
+        
         if (candidate.finishReason === 'SAFETY' || candidate.finishReason === 'RECITATION') {
           console.error('🚫 Respuesta bloqueada por safety o recitación');
+          return this.fallbackAnalysis(elementData, pageContext);
+        }
+        
+        if (candidate.finishReason === 'MAX_TOKENS') {
+          console.error('🚫 MAX_TOKENS alcanzado - respuesta incompleta');
+          console.error('Token usage:', result.usageMetadata);
+          this.metrics.fallbackCount++;
           return this.fallbackAnalysis(elementData, pageContext);
         }
       }
@@ -281,40 +294,27 @@ export class GeminiAIClient {
   
   /**
    * Construye prompt simplificado para análisis rápido (FASE 1)
+   * OPTIMIZADO: Máximo 200 tokens para evitar MAX_TOKENS
    */
   buildLightweightPrompt(elementData, pageContext) {
-    return `Eres un analizador de elementos web. Responde SOLO con JSON válido, sin texto adicional.
+    // Prompt ultra-compacto: priorizar info crítica
+    const tag = elementData.tagName || '?';
+    const text = (elementData.textContent || '').substring(0, 25);
+    const attrs = [];
+    
+    if (elementData.dataTestId) attrs.push(`data-testid="${elementData.dataTestId}"`);
+    if (elementData.id) attrs.push(`id="${elementData.id}"`);
+    if (elementData.ariaLabel) attrs.push(`aria="${elementData.ariaLabel.substring(0, 20)}"`);
+    if (elementData.type) attrs.push(`type="${elementData.type}"`);
+    if (elementData.target === '_blank') attrs.push('target="_blank"');
+    
+    return `Analiza elemento web. SOLO JSON, sin texto.
 
-ELEMENTO CAPTURADO:
-- Tag: ${elementData.tagName || 'N/A'}
-- ID: ${elementData.id || 'N/A'}
-- data-testid: ${elementData.dataTestId || 'N/A'}
-- aria-label: ${elementData.ariaLabel || 'N/A'}
-- Text: ${(elementData.textContent || '').substring(0, 100) || 'N/A'}
-- Href: ${elementData.href || 'N/A'}
-- Target: ${elementData.target || 'N/A'}
-- Type: ${elementData.type || 'N/A'}
-- Name: ${elementData.name || 'N/A'}
+<${tag}${attrs.length ? ' ' + attrs.slice(0, 3).join(' ') : ''}>${text}</${tag}>
+URL: ${pageContext.url.substring(0, 40)}
 
-CONTEXTO:
-- URL: ${pageContext.url || 'N/A'}
-- Title: ${pageContext.title || 'N/A'}
-
-TAREA:
-1. Pre-ranking de selectores CSS (ordena por robustez, score 0-100):
-   Prioridad: data-testid > id > aria-label > name > class único
-2. Detecta si abre nueva pestaña (target="_blank")
-3. Clasifica intent en: form_submission, navigation, authentication, search, data_entry, ui_interaction
-
-IMPORTANTE: Responde SOLO con este JSON, SIN explicaciones ni markdown:
-{
-  "selectorPreRanking": [
-    {"selector": "CSS selector string", "score": 100, "reason": "breve"}
-  ],
-  "opensNewTab": false,
-  "intent": "navigation",
-  "confidence": 95
-}`;
+Responde:
+{"selectorPreRanking":[{"selector":"css","score":0.9}],"opensNewTab":${elementData.target === '_blank'},"intent":"accion"}`;
   }
   
   /**
