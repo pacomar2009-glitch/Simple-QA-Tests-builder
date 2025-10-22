@@ -1,6 +1,13 @@
 // 🎯 US#120 + US#55 - CONTENT SCRIPT: Captura de eventos de usuario
 // Se inyecta en todas las páginas para capturar interacciones
 
+// ⚠️ PREVENIR DOBLE INYECCIÓN (evitar error "Identifier 'isCapturing' has already been declared")
+if (window.testBuilderContentScriptLoaded) {
+  console.log('⚠️ Content Script ya cargado, abortando duplicación');
+  throw new Error('Content script already loaded');
+}
+window.testBuilderContentScriptLoaded = true;
+
 console.log('👁️ TestBuilder v3 - Content Script cargado');
 
 // Estado de captura

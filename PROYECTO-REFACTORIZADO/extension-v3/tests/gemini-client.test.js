@@ -45,7 +45,7 @@ describe('GeminiAIClient', () => {
     });
     
     test('should use correct model', () => {
-      expect(client.model).toBe('gemini-1.5-flash'); // Modelo válido en Gemini API
+      expect(client.model).toBe('gemini-1.5-flash-latest'); // Modelo válido en Gemini API v1
     });
   });
   
