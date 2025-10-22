@@ -202,14 +202,14 @@
     <!-- HEADER -->
     <div class="header">
       <h1>TestBuilder Agéntico</h1>
-      <div class="version">v3.0.0 - US#120 + US#121 (FASE 1)</div>
+      <div class="version">v3.0.0 - US#124 (Single-Pass AI)</div>
     </div>
     
-    <!-- US#121 CRITICAL: Banner de advertencia fallback -->
-    <div class="fallback-banner" id="fallback-banner">
-      <strong>⚠️ MODO FALLBACK ACTIVO</strong>
-      <p>Gemini IA no disponible. Usando análisis heurístico básico (sin pre-análisis inteligente).</p>
-      <p><a href="#" id="fallback-config-link">→ Configurar API Key de Gemini</a></p>
+    <!-- US#124: Info banner Captura RAW -->
+    <div class="fallback-banner" id="info-banner" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-left-color: #667eea;">
+      <strong>📦 CAPTURA RAW (sin IA en extensión)</strong>
+      <p>Extensión captura eventos sin procesamiento de IA. Backend procesará con Single-Pass AI (US#123).</p>
+      <p>✅ Benefits: -91% API calls, -70% latency, -85% tokens</p>
     </div>
     
     <!-- STATUS CARD -->
@@ -226,10 +226,10 @@
         <span class="status-label">Session ID:</span>
         <span class="status-value" id="session-id">-</span>
       </div>
-      <!-- US#121: Estado de Gemini IA -->
+      <!-- US#124: Modo de captura -->
       <div class="status-row">
-        <span class="status-label">🤖 Gemini IA:</span>
-        <span class="status-value" id="gemini-status">⏳ Cargando...</span>
+        <span class="status-label">📦 Modo:</span>
+        <span class="status-value" id="capture-mode">RAW Capture</span>
       </div>
       <!-- US#57: Cola de casos -->
       <div class="status-row">
@@ -264,8 +264,8 @@
     
     <!-- INFO -->
     <div class="info">
-      <strong>✨ US#120 + US#121 + US#57 + US#92:</strong> MCP + Gemini IA + Cases + Export<br>
-      <strong>🤖 Gemini:</strong> <a href="#" id="link-config" style="color: #667eea; text-decoration: underline;">Configurar API Key</a><br>
+      <strong>✨ US#124:</strong> Captura RAW (sin IA) + MCP DevTools + Cases + Export<br>
+      <strong>🤖 Procesamiento IA:</strong> Backend Single-Pass (Issue #123)<br>
       <strong>Shortcut:</strong> Ctrl+Shift+R (toggle)<br>
       <strong>📥 Export:</strong> Descarga ZIP con casos grabados (MVP)
     </div>

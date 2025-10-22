@@ -10,17 +10,14 @@ const btnExport = document.getElementById('btn-export'); // US#92
 const statusEl = document.getElementById('status');
 const eventsCountEl = document.getElementById('events-count');
 const sessionIdEl = document.getElementById('session-id');
-const geminiStatusEl = document.getElementById('gemini-status'); // US#121
 const casesCountEl = document.getElementById('cases-count'); // US#57
 const casesCompletedEl = document.getElementById('cases-completed'); // US#57
-const fallbackBanner = document.getElementById('fallback-banner'); // US#121 CRITICAL
 
 // Estado local
 let currentState = {
   isRecording: false,
   eventsCount: 0,
   sessionId: null,
-  geminiEnabled: false, // US#121
   casesStats: { total: 0, completed: 0 } // US#57
 };
 
@@ -36,24 +33,6 @@ async function init() {
   btnStop.addEventListener('click', handleStop);
   btnExport.addEventListener('click', handleExport); // US#92
   
-  // US#121: Link a config
-  const linkConfig = document.getElementById('link-config');
-  if (linkConfig) {
-    linkConfig.addEventListener('click', (e) => {
-      e.preventDefault();
-      chrome.tabs.create({ url: chrome.runtime.getURL('config.html') });
-    });
-  }
-  
-  // US#121 CRITICAL: Link de configuración en banner de fallback
-  const fallbackConfigLink = document.getElementById('fallback-config-link');
-  if (fallbackConfigLink) {
-    fallbackConfigLink.addEventListener('click', (e) => {
-      e.preventDefault();
-      chrome.tabs.create({ url: chrome.runtime.getURL('config.html') });
-    });
-  }
-  
   console.log('✅ Popup inicializado');
 }
 
@@ -66,7 +45,6 @@ async function updateState() {
       currentState.isRecording = response.state.isRecording;
       currentState.eventsCount = response.state.eventsCount;
       currentState.sessionId = response.state.sessionId;
-      currentState.geminiEnabled = response.state.geminiEnabled;
       // US#57: Stats de casos
       currentState.casesStats = response.state.queueStats || { total: 0, completed: 0 };
       
@@ -79,17 +57,6 @@ async function updateState() {
 
 // 🎨 RENDERIZAR ESTADO EN UI
 function renderState() {
-  // US#121 CRITICAL: Estado de Gemini IA + Banner de advertencia
-  if (currentState.geminiEnabled) {
-    geminiStatusEl.textContent = '✅ Activo';
-    geminiStatusEl.style.color = '#22c55e';
-    fallbackBanner.classList.remove('show'); // Ocultar banner
-  } else {
-    geminiStatusEl.textContent = '⚠️ Fallback';
-    geminiStatusEl.style.color = '#f59e0b';
-    fallbackBanner.classList.add('show'); // MOSTRAR BANNER CRÍTICO
-  }
-  
   // US#57: Estadísticas de casos
   casesCountEl.textContent = currentState.casesStats?.total || 0;
   casesCompletedEl.textContent = currentState.casesStats?.completed || 0;
@@ -139,16 +106,11 @@ async function handleRecord() {
       currentState.isRecording = true;
       currentState.sessionId = response.sessionId;
       currentState.eventsCount = 0;
-      currentState.geminiEnabled = response.geminiEnabled; // US#121 FIX
       
       renderState();
       
-      // US#121 FIX: Notificación diferente según modo
-      if (response.geminiEnabled) {
-        showNotification('✅ Grabación iniciada con IA Gemini', 'success');
-      } else {
-        showNotification('⚠️ Grabación iniciada en MODO FALLBACK (sin IA)', 'warning');
-      }
+      // Notificación de captura raw (sin IA)
+      showNotification('✅ Grabación iniciada - Captura raw (análisis en backend)', 'success');
       
     } else {
       console.error('❌ Error iniciando grabación:', response.error);
@@ -189,8 +151,8 @@ async function handleStop() {
         'success'
       );
       
-      // TODO: US#121 - Aquí se llamará a IA Ligera para pre-análisis
-      console.log('📍 Próximo: Enviar a US#121 (IA Ligera Gemini Flash)');
+      // Eventos raw capturados - Backend los procesará con IA single-pass
+      console.log('✅ Eventos raw capturados - Listos para backend single-pass');
       
     } else {
       console.error('❌ Error deteniendo grabación:', response.error);
@@ -257,12 +219,12 @@ function showNotification(message, type = 'info') {
       renderState();
     }, 1000);
   } else if (type === 'warning') {
-    // US#121 FIX: Flash naranja para modo fallback
+    // Warning notification
     statusEl.style.color = '#f59e0b';
     statusEl.style.fontWeight = 'bold';
     setTimeout(() => {
       renderState();
-    }, 2000); // Duración más larga para warnings
+    }, 2000);
   } else if (type === 'error') {
     statusEl.style.color = '#FF0000';
     setTimeout(() => {

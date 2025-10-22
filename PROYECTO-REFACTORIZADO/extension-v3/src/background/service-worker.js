@@ -1,16 +1,14 @@
 // 🔧 US#120 - SERVICE WORKER (Background)
 // Gestiona MCP Chrome DevTools y comunicación con content scripts
 
-// 🤖 US#121 - Import Gemini IA Ligera
-import { GeminiAIClient } from '../ai-ligera/gemini-client.js';
-
 // 📋 US#57 - Import CasesQueueManager
 import { CasesQueueManager } from '../shared/cases-queue.js';
 
 // 📥 US#92 - Import Export Utils
 import { ExportUtils } from '../shared/export-utils.js';
 
-console.log('🚀 TestBuilder Agéntico v3 - Service Worker iniciado (US#120 + US#121 + US#57 + US#92)');
+console.log('🚀 TestBuilder Agéntico v3 - Service Worker iniciado (US#120 + US#124 + US#57 + US#92)');
+console.log('📦 US#124: Captura RAW sin IA - Backend procesará con Single-Pass');
 
 // 🗄️ Estado global de grabación
 const state = {
@@ -19,22 +17,8 @@ const state = {
   debuggerAttached: false,
   capturedEvents: [],
   sessionId: null,
-  geminiAI: null, // US#121: Cliente Gemini IA
   casesQueue: null // US#57: Gestor de cola de casos
 };
-
-// 🤖 US#121 - Inicializar Gemini IA Ligera
-async function initializeGeminiAI() {
-  state.geminiAI = new GeminiAIClient();
-  
-  // Cargar API key desde storage
-  const result = await chrome.storage.sync.get(['geminiApiKey']);
-  if (result.geminiApiKey) {
-    await state.geminiAI.initialize(result.geminiApiKey);
-  } else {
-    console.warn('⚠️ No hay API key de Gemini configurada. Usando fallback.');
-  }
-}
 
 // 📋 US#57 - Inicializar CasesQueueManager
 async function initializeCasesQueue() {
@@ -44,10 +28,7 @@ async function initializeCasesQueue() {
 }
 
 // Inicializar sistemas al cargar service worker
-Promise.all([
-  initializeGeminiAI(),
-  initializeCasesQueue()
-]).catch(error => {
+initializeCasesQueue().catch(error => {
   console.error('❌ Error inicializando service worker:', error);
 });
 
@@ -84,28 +65,24 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           isRecording: state.isRecording,
           eventsCount: state.capturedEvents.length,
           sessionId: state.sessionId,
-          geminiEnabled: state.geminiAI?.isInitialized || false, // US#121
+          captureMode: 'RAW_CAPTURE', // US#124: Sin IA en extensión
+          backendProcessing: 'Single-Pass AI', // US#123: Backend procesará
           currentCase: state.casesQueue?.getCurrentCase() || null, // US#57
-          queueStats: state.casesQueue?.getStats() || null, // US#57
-          geminiStats: state.geminiAI?.getCacheStats() || null // US#121: Estadísticas de cache
+          queueStats: state.casesQueue?.getStats() || null // US#57
         }
       });
       return false;
     
     case 'GET_GEMINI_STATS':
-      // Nuevo: Obtener estadísticas detalladas de Gemini IA
-      if (state.geminiAI) {
-        sendResponse({
-          success: true,
-          stats: state.geminiAI.getCacheStats()
-        });
-      } else {
-        sendResponse({ success: false, error: 'Gemini AI no inicializado' });
-      }
+      // US#124: Gemini removido de extensión
+      sendResponse({ 
+        success: false, 
+        error: 'Gemini IA removido de extensión (US#124). Backend procesará con Single-Pass AI (US#123)' 
+      });
       return false;
       
     case 'USER_ACTION':
-      // US#55 + US#121: Captura de eventos con pre-análisis IA
+      // US#124: Captura de eventos RAW (sin IA)
       if (state.isRecording) {
         captureUserAction(message.payload)
           .then(() => sendResponse({ success: true }))
@@ -116,63 +93,22 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       return false;
       
     case 'CONFIGURE_TEST_GEMINI':
-      // NUEVO: Test real de conexión con Gemini API
-      (async () => {
-        try {
-          if (!state.geminiAI) {
-            sendResponse({ success: false, error: 'GeminiClient no inicializado' });
-            return;
-          }
-          
-          // Usar modelo del mensaje o default
-          const modelToTest = message.model || 'gemini-2.5-flash';
-          
-          // Guardar modelo original
-          const originalModel = state.geminiAI.model;
-          
-          // Configurar modelo temporal para test
-          state.geminiAI.model = modelToTest;
-          
-          // Inicializar temporalmente con la API key para test
-          await state.geminiAI.initialize(message.apiKey);
-          
-          // Hacer test real de conexión
-          const testResult = await state.geminiAI.testConnection();
-          
-          // Restaurar modelo original
-          state.geminiAI.model = originalModel;
-          
-          sendResponse(testResult);
-          
-        } catch (error) {
-          console.error('❌ Error en test de Gemini:', error);
-          sendResponse({ success: false, error: error.message });
-        }
-      })();
-      return true;
+      // US#124: Gemini removido de extensión
+      sendResponse({ 
+        success: false, 
+        error: 'Gemini IA removido de extensión (US#124). Backend procesará con Single-Pass AI (US#123)',
+        info: 'No se requiere configuración de API key en extensión'
+      });
+      return false;
       
     case 'CONFIGURE_GEMINI_API_KEY':
-      // US#121: Configurar API key de Gemini (con modelo)
-      chrome.storage.sync.set({ 
-        geminiApiKey: message.apiKey,
-        geminiModel: message.model || 'gemini-2.5-flash'
-      })
-        .then(() => {
-          if (state.geminiAI) {
-            // Actualizar modelo si se proporciona
-            if (message.model) {
-              state.geminiAI.model = message.model;
-            }
-            return state.geminiAI.initialize(message.apiKey);
-          }
-        })
-        .then(() => {
-          sendResponse({ success: true, message: 'Gemini API key configurada' });
-        })
-        .catch(error => {
-          sendResponse({ success: false, error: error.message });
-        });
-      return true;
+      // US#124: Gemini removido de extensión
+      sendResponse({ 
+        success: false, 
+        error: 'Gemini IA removido de extensión (US#124). Backend procesará con Single-Pass AI (US#123)',
+        info: 'API key se configurará en backend'
+      });
+      return false;
       
     // 📋 US#57 - Nuevos handlers para gestión de cola de casos
     case 'CREATE_CASE':
@@ -536,49 +472,17 @@ function onDebuggerEvent(source, method, params) {
 // US#121: Ahora incluye pre-análisis con Gemini IA Ligera
 // US#57: Añade steps al caso actual en la cola
 async function captureUserAction(action) {
-  console.log(`📝 Acción capturada (iniciando pre-análisis): ${action.type}`);
+  console.log(`📝 Acción capturada (RAW - sin IA): ${action.type}`);
   
-  // 🤖 US#121 - Pre-análisis con Gemini IA Ligera
-  let aiPreAnalysis = null;
-  if (state.geminiAI) {
-    try {
-      const pageContext = {
-        url: action.url || '',
-        title: action.pageTitle || ''
-      };
-      
-      // Extraer datos del elemento desde action.target
-      const elementData = {
-        tagName: action.tagName,
-        id: action.attributes?.id || '',
-        dataTestId: action.attributes?.['data-testid'] || '',
-        ariaLabel: action.attributes?.['aria-label'] || '',
-        textContent: action.text || '',
-        href: action.attributes?.href || '',
-        target: action.attributes?.target || '',
-        type: action.attributes?.type || '',
-        name: action.attributes?.name || ''
-      };
-      
-      aiPreAnalysis = await state.geminiAI.preAnalyzeElement(elementData, pageContext);
-      console.log(`✅ Pre-análisis completado en ${aiPreAnalysis.latencyMs}ms`);
-    } catch (error) {
-      console.error('❌ Error en pre-análisis Gemini:', error);
-      // Continuar sin análisis IA
-    }
-  }
-  
+  // 📦 US#124 - Captura RAW sin pre-análisis IA
+  // Backend procesará con Single-Pass AI (Issue #125)
   const event = {
     type: 'user_action',
     action,
     timestamp: Date.now(),
     sessionId: state.sessionId,
-    
-    // 🤖 US#121: Añadir pre-análisis IA
-    aiPreAnalysis: aiPreAnalysis || {
-      note: 'Sin pre-análisis (Gemini no disponible)',
-      phase: 'PHASE_1_NO_AI'
-    }
+    capturePhase: 'RAW_CAPTURE', // US#124: Indica captura sin IA
+    note: 'Backend procesará con Single-Pass AI' // US#123: Referencia a refactorización
   };
   
   state.capturedEvents.push(event);
@@ -597,17 +501,17 @@ async function captureUserAction(action) {
       url: action.url,
       pageTitle: action.pageTitle,
       timestamp: Date.now(),
-      aiPreAnalysis: aiPreAnalysis || null
+      capturePhase: 'RAW_CAPTURE' // US#124: Sin aiPreAnalysis
     };
     
     await state.casesQueue.addStepToCurrentCase(stepData);
   }
   
-  console.log(`📝 Evento guardado con pre-análisis IA:`, {
+  console.log(`📝 Evento RAW guardado (US#124):`, {
     type: action.type,
     selector: action.selector,
-    aiIntent: aiPreAnalysis?.intent || 'unknown',
-    aiLatency: aiPreAnalysis?.latencyMs || 0
+    capturePhase: 'RAW_CAPTURE',
+    note: 'Backend procesará con Single-Pass AI'
   });
 }
 
