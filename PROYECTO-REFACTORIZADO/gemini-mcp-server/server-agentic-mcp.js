@@ -6,12 +6,16 @@ const express = require('express');
 const cors = require('cors');
 const { runGeminiAgent } = require('./gemini-agentic-loop');
 const { TestGenerationOrchestrator } = require('./src/orchestrators/test-generation-orchestrator');
+const { MCPPlaywrightGenerator } = require('./src/generators/mcp-playwright-generator');
 
 const app = express();
 const PORT = process.env.PORT || 4000;
 
 // Inicializar orchestrator (issue #125)
 const testOrchestrator = new TestGenerationOrchestrator();
+
+// Inicializar MCP Generator
+const mcpGenerator = new MCPPlaywrightGenerator(process.env.GEMINI_API_KEY);
 
 // Middleware
 app.use(cors());
@@ -329,6 +333,52 @@ app.use((req, res) => {
   });
 });
 
+// 🎭 ENDPOINT MCP PLAYWRIGHT TEST GENERATION (con streaming)
+app.post('/test-generation/mcp-generate', async (req, res) => {
+  console.log('\n🎭 === NUEVA SOLICITUD MCP TEST GENERATION ===');
+  
+  // Configurar SSE (Server-Sent Events)
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  res.flushHeaders();
+  
+  const { sessionId, steps, metadata = {} } = req.body;
+  
+  try {
+    // Callback para streaming de progreso
+    const progressCallback = (progress) => {
+      res.write(`data: ${JSON.stringify(progress)}\n\n`);
+    };
+    
+    // Generar test con MCP
+    const result = await mcpGenerator.generateTestWithMCP({
+      sessionId,
+      steps,
+      metadata
+    }, progressCallback);
+    
+    // Enviar resultado final
+    res.write(`data: ${JSON.stringify({
+      phase: 'completed',
+      message: '✅ Test generado exitosamente',
+      progress: 100,
+      result
+    })}\n\n`);
+    
+    res.end();
+    
+  } catch (error) {
+    console.error('💥 Error en MCP generation:', error);
+    res.write(`data: ${JSON.stringify({
+      phase: 'error',
+      message: error.message,
+      progress: 0
+    })}\n\n`);
+    res.end();
+  }
+});
+
 // 💥 Error Handler Global
 app.use((error, req, res, next) => {
   console.error('💥 Error no manejado:', error);
@@ -351,6 +401,7 @@ const server = app.listen(PORT, () => {
   console.log('\n🚀 ENDPOINTS DISPONIBLES:');
   console.log(`   POST   /agent/run              - Agente loop completo`);
   console.log(`   POST   /test-generation/start  - ✨ Single-Pass Test Gen (Issue #125)`);
+  console.log(`   POST   /test-generation/mcp-generate - 🎭 MCP Test Gen con streaming (SSE)`);
   console.log(`   GET    /test-generation/status/:jobId - Status de job`);
   console.log(`   GET    /test-generation/stats  - Token manager stats`);
   console.log('========================================\n');
