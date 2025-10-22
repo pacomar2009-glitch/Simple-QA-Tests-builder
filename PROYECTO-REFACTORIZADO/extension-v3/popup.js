@@ -7,6 +7,7 @@ console.log('🎮 Popup cargado');
 const btnRecord = document.getElementById('btn-record');
 const btnStop = document.getElementById('btn-stop');
 const btnExport = document.getElementById('btn-export'); // US#92
+const btnConfig = document.getElementById('btn-config'); // US#121
 const statusEl = document.getElementById('status');
 const eventsCountEl = document.getElementById('events-count');
 const sessionIdEl = document.getElementById('session-id');
@@ -32,6 +33,7 @@ async function init() {
   btnRecord.addEventListener('click', handleRecord);
   btnStop.addEventListener('click', handleStop);
   btnExport.addEventListener('click', handleExport); // US#92
+  btnConfig.addEventListener('click', handleConfig); // US#121
   
   console.log('✅ Popup inicializado');
 }
@@ -208,7 +210,13 @@ async function handleExport() {
   }
 }
 
-// �📢 MOSTRAR NOTIFICACIÓN
+// ⚙️ US#121 - ABRIR PÁGINA DE CONFIGURACIÓN
+function handleConfig() {
+  console.log('⚙️ Abriendo configuración...');
+  chrome.tabs.create({ url: chrome.runtime.getURL('config.html') });
+}
+
+// � MOSTRAR NOTIFICACIÓN
 function showNotification(message, type = 'info') {
   console.log(`[${type.toUpperCase()}] ${message}`);
   
