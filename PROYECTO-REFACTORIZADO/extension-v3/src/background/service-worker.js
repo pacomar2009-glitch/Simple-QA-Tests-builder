@@ -300,19 +300,23 @@ async function stopRecording() {
       await chrome.action.setBadgeText({ text: '' }); // SIN tabId = global
     }
     
-    // 4. Guardar sesión en storage (mantener compatibilidad)
-    const session = {
+    // 4. US#124: Guardar solo metadata (NO eventos completos - evita quota exceeded)
+    const sessionMetadata = {
       sessionId: state.sessionId,
-      events: state.capturedEvents,
       timestamp: new Date().toISOString(),
       eventsCount: state.capturedEvents.length,
-      caseId: currentCase?.id, // US#57: Vincular con caso
-      caseNumber: currentCase?.number // US#57: Vincular con número
+      caseId: currentCase?.id,
+      caseNumber: currentCase?.number
     };
     
-    await chrome.storage.local.set({
-      [`session_${state.sessionId}`]: session
-    });
+    try {
+      await chrome.storage.local.set({
+        [`session_meta_${state.sessionId}`]: sessionMetadata
+      });
+      console.log(`💾 Session metadata guardada (${state.capturedEvents.length} eventos, NO guardados en storage)`);
+    } catch (storageError) {
+      console.warn('⚠️ Error guardando metadata:', storageError.message);
+    }
     
     // 📋 US#57: Completar caso actual
     if (currentCase) {
@@ -451,6 +455,19 @@ function onDebuggerEvent(source, method, params) {
 // US#121: Ahora incluye pre-análisis con Gemini IA Ligera
 // US#57: Añade steps al caso actual en la cola
 async function captureUserAction(action) {
+  // ✅ FILTRO: Solo eventos relevantes del usuario (evita quota exceeded)
+  const RELEVANT_EVENTS = [
+    'click', 'dblclick', 'submit', 'change', 'input', 
+    'keydown', 'paste', 'focus', 'blur',
+    'navigation', 'url_change', 'page_load',
+    'tab_switch', 'window_switch', 'scroll', 'hover',
+    'select', 'drag', 'drop', 'contextmenu'
+  ];
+  
+  if (!RELEVANT_EVENTS.includes(action.type)) {
+    return; // Ignorar eventos irrelevantes (ej: mousemove, mouseenter, etc)
+  }
+  
   console.log(`📝 Acción capturada (RAW - sin IA): ${action.type}`);
   
   // 📦 US#124 - Captura RAW sin pre-análisis IA
@@ -494,8 +511,21 @@ async function captureUserAction(action) {
   });
 }
 
-// 📝 CAPTURAR EVENTO DEL DEBUGGER
+// 📝 CAPTURAR EVENTO DEL DEBUGGER (FILTRADO)
 function captureDebuggerEvent(event) {
+  // ✅ FILTRO: Solo eventos críticos de navegación/red
+  const RELEVANT_DEBUGGER_EVENTS = [
+    'Network.requestWillBeSent',
+    'Network.responseReceived',
+    'Page.loadEventFired',
+    'Page.frameNavigated',
+    'Page.domContentEventFired'
+  ];
+  
+  if (event.method && !RELEVANT_DEBUGGER_EVENTS.includes(event.method)) {
+    return; // Ignorar eventos de debugger irrelevantes
+  }
+  
   const capturedEvent = {
     type: 'debugger_event',
     ...event,

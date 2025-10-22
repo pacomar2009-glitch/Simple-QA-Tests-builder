@@ -252,13 +252,47 @@ export class CasesQueueManager {
   }
   
   /**
-   * Persistir en storage
+   * Persistir en storage (OPTIMIZADO - evita quota exceeded)
    */
   async save() {
-    await chrome.storage.local.set({
-      casesQueue: this.cases,
-      currentCaseId: this.currentCaseId
-    });
+    try {
+      // ✅ LIMITAR: Solo guardar últimos 5 casos (evita quota exceeded)
+      const casesToSave = this.cases.slice(-5);
+      
+      // ✅ COMPRIMIR: Remover campos pesados de steps
+      const compressedCases = casesToSave.map(c => ({
+        ...c,
+        steps: c.steps.map(s => ({
+          number: s.number,
+          type: s.type,
+          selector: s.selector,
+          value: s.value,
+          text: s.text?.substring(0, 100), // Limitar texto
+          url: s.url,
+          timestamp: s.timestamp
+          // Removemos: attributes, position, pageTitle (pesados)
+        }))
+      }));
+      
+      await chrome.storage.local.set({
+        casesQueue: compressedCases,
+        currentCaseId: this.currentCaseId
+      });
+    } catch (error) {
+      console.error('❌ Error guardando casos (quota exceeded?):', error.message);
+      // Si falla, intentar guardar solo el caso actual
+      try {
+        const currentCase = this.cases.find(c => c.id === this.currentCaseId);
+        if (currentCase) {
+          await chrome.storage.local.set({
+            casesQueue: [currentCase],
+            currentCaseId: this.currentCaseId
+          });
+        }
+      } catch (retryError) {
+        console.error('❌ Falló retry de guardado:', retryError.message);
+      }
+    }
   }
   
   /**
