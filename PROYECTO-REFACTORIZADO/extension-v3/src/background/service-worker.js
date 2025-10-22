@@ -136,16 +136,37 @@ async function startRecording(tabId) {
       sessionId: state.sessionId
     });
     
-    // 5. Actualizar badge
-    await chrome.action.setBadgeText({ text: 'REC', tabId });
-    await chrome.action.setBadgeBackgroundColor({ color: '#FF0000', tabId });
+    // 5. Badge visual con indicador de modo
+    const geminiEnabled = state.geminiAI?.isInitialized || false;
+    const badgeText = geminiEnabled ? 'REC' : 'FB'; // FB = Fallback
+    const badgeColor = geminiEnabled ? '#FF0000' : '#f59e0b'; // Naranja si es fallback
+    
+    await chrome.action.setBadgeText({ text: badgeText, tabId });
+    await chrome.action.setBadgeBackgroundColor({ color: badgeColor, tabId });
     
     console.log(`✅ Grabación iniciada - Session: ${state.sessionId}`);
+    
+    // 🚨 US#121 FIX: Notificación explícita si está en modo fallback
+    if (!geminiEnabled) {
+      console.warn('⚠️ MODO FALLBACK ACTIVO: Gemini IA no disponible. Usando análisis heurístico básico.');
+      console.warn('   → Configura API key en: chrome-extension://' + chrome.runtime.id + '/config.html');
+      
+      // Mostrar notificación al usuario
+      chrome.notifications.create({
+        type: 'basic',
+        iconUrl: 'icon.png',
+        title: '⚠️ Grabación en Modo Fallback',
+        message: 'Gemini IA no disponible. Usando análisis básico sin IA.\n\nConfigura tu API key para pre-análisis inteligente.',
+        priority: 1,
+        requireInteraction: false
+      });
+    }
     
     return {
       success: true,
       sessionId: state.sessionId,
-      tabId
+      tabId,
+      geminiEnabled // Informar al popup del modo actual
     };
     
   } catch (error) {

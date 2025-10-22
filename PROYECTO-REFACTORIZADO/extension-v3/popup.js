@@ -104,11 +104,16 @@ async function handleRecord() {
       currentState.isRecording = true;
       currentState.sessionId = response.sessionId;
       currentState.eventsCount = 0;
+      currentState.geminiEnabled = response.geminiEnabled; // US#121 FIX
       
       renderState();
       
-      // Mostrar notificación
-      showNotification('✅ Grabación iniciada', 'success');
+      // US#121 FIX: Notificación diferente según modo
+      if (response.geminiEnabled) {
+        showNotification('✅ Grabación iniciada con IA Gemini', 'success');
+      } else {
+        showNotification('⚠️ Grabación iniciada en MODO FALLBACK (sin IA)', 'warning');
+      }
       
     } else {
       console.error('❌ Error iniciando grabación:', response.error);
@@ -167,14 +172,23 @@ async function handleStop() {
 
 // 📢 MOSTRAR NOTIFICACIÓN
 function showNotification(message, type = 'info') {
-  // Por ahora, usar alert simple
-  // TODO: Implementar toast notifications
   console.log(`[${type.toUpperCase()}] ${message}`);
   
-  // Opcional: Chrome notifications API
+  // Flash visual según tipo
   if (type === 'success') {
-    // Green flash en el status
     statusEl.style.color = '#00FF00';
+    setTimeout(() => {
+      renderState();
+    }, 1000);
+  } else if (type === 'warning') {
+    // US#121 FIX: Flash naranja para modo fallback
+    statusEl.style.color = '#f59e0b';
+    statusEl.style.fontWeight = 'bold';
+    setTimeout(() => {
+      renderState();
+    }, 2000); // Duración más larga para warnings
+  } else if (type === 'error') {
+    statusEl.style.color = '#FF0000';
     setTimeout(() => {
       renderState();
     }, 1000);

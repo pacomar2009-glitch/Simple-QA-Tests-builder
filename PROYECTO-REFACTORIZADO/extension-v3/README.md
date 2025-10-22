@@ -44,6 +44,10 @@ Extensión Chrome con arquitectura agéntica implementando HU del MVP.
   - ✅ Cache de análisis (evita duplicados)
   - ✅ Fallback sin API key (100% funcional)
   - ✅ Max 300 tokens por análisis
+  - ✅ **Notificaciones explícitas** cuando está en modo fallback:
+    - Badge "FB" (naranja) vs "REC" (rojo)
+    - Notificación Chrome al iniciar grabación
+    - Mensaje en popup durante grabación
 
 ### 🔄 **US#57** - Cola de Casos UI (PRÓXIMO)
 - **Status**: Pendiente
