@@ -5,13 +5,13 @@
   "main": "server-agentic-mcp.js",
   "scripts": {
     "start": "node server-agentic-mcp.js",
-
     "start:headless": "FORCE_HEADLESS=true node server-agentic-mcp.js",
     "start:head": "FORCE_HEADLESS=false node server-agentic-mcp.js",
     "dev": "nodemon server-agentic-mcp.js",
     "mcp:server": "node mcp-playwright-server.js",
     "agent:cli": "node gemini-agentic-loop.js",
-    "test": "echo \"No tests yet\" && exit 0",
+    "test": "jest --coverage",
+    "test:watch": "jest --watch",
     "docker:build": "docker build -t gemini-mcp-playwright .",
     "docker:run": "docker run -e DISPLAY=$DISPLAY -v /tmp/.X11-unix:/tmp/.X11-unix -p 4000:4000 --name mcp-runner gemini-mcp-playwright",
     "docker:stop": "docker stop mcp-runner && docker rm mcp-runner"
@@ -43,6 +43,7 @@
     "winston": "^3.11.0"
   },
   "devDependencies": {
+    "jest": "^29.7.0",
     "nodemon": "^3.0.2"
   },
   "engines": {

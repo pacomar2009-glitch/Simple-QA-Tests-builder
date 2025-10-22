@@ -263,11 +263,10 @@ async function startRecording(tabId) {
       console.warn('⚠️ MODO FALLBACK ACTIVO: Gemini IA no disponible. Usando análisis heurístico básico.');
       console.warn('   → Configura API key en: chrome-extension://' + chrome.runtime.id + '/config.html');
       
-      // Mostrar notificación al usuario (con manejo de errores)
+      // Mostrar notificación al usuario (sin iconUrl para evitar errores)
       try {
         await chrome.notifications.create('fallback-warning', {
           type: 'basic',
-          iconUrl: chrome.runtime.getURL('icon-48.png'), // Usar ruta completa
           title: '⚠️ Grabación en Modo Fallback',
           message: 'Gemini IA no disponible. Usando análisis básico sin IA.\n\nConfigura tu API key para pre-análisis inteligente.',
           priority: 1,
