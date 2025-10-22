@@ -91,7 +91,9 @@ function renderState() {
     statusEl.innerHTML = '<span class="pulse"></span>Grabando';
     statusEl.className = 'status-value recording';
     btnRecord.disabled = true;
+    btnRecord.textContent = 'Start Recording'; // Reset text
     btnStop.disabled = false;
+    btnStop.textContent = 'Stop Recording'; // Reset text
     eventsCountEl.textContent = currentState.eventsCount || 0;
     sessionIdEl.textContent = currentState.sessionId || '-';
     
@@ -100,7 +102,9 @@ function renderState() {
     statusEl.textContent = 'Idle';
     statusEl.className = 'status-value idle';
     btnRecord.disabled = false;
+    btnRecord.textContent = 'Start Recording'; // Reset text
     btnStop.disabled = true;
+    btnStop.textContent = 'Stop Recording'; // Reset text
     eventsCountEl.textContent = '0';
     sessionIdEl.textContent = '-';
   }
