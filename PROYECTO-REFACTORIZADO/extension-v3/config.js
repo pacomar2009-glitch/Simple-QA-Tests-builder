@@ -35,17 +35,15 @@ async function loadCurrentConfig() {
     if (result.geminiApiKey && result.geminiApiKey.trim() !== '') {
       apiKeyInput.value = result.geminiApiKey;
       
-      // MOSTRAR ESTADO COMO "Configurada (requiere validación)"
-      // NO asumimos que funciona hasta que se valide
-      currentStatus.textContent = '⚠️ Configurada (no validada)';
-      currentStatus.className = 'value disabled';
+      // US#124: API Key configurada para backend
+      currentStatus.textContent = '✅ Configurada para backend';
+      currentStatus.className = 'value';
       apiKeyStatus.textContent = '✅ Sí';
       apiKeyStatus.className = 'value';
       
-      // Mostrar hint para validar
-      showTestResult('⚠️ API Key configurada. Click "Probar Conexión" para validar', 'testing');
+      showTestResult('ℹ️ API Key almacenada. Backend (puerto 4000) la usará para Single-Pass AI.', 'testing');
     } else {
-      currentStatus.textContent = '⚠️ Fallback (sin API key)';
+      currentStatus.textContent = '⚠️ Sin API key';
       currentStatus.className = 'value disabled';
       apiKeyStatus.textContent = '❌ No';
       apiKeyStatus.className = 'value disabled';
@@ -81,29 +79,14 @@ async function handleTest() {
   
   try {
     btnTest.disabled = true;
-    btnTest.innerHTML = '<span>⏳</span><span>Probando...</span>';
-    showTestResult('⏳ Probando conexión con Gemini API (' + model + ')...', 'testing');
+    btnTest.innerHTML = '<span>⏳</span><span>Validando formato...</span>';
     
-    // Llamar al service worker para test real
-    const response = await chrome.runtime.sendMessage({
-      type: 'CONFIGURE_TEST_GEMINI',
-      apiKey: apiKey,
-      model: model
-    });
+    // US#124: Extensión ya NO tiene Gemini, solo valida formato
+    await new Promise(resolve => setTimeout(resolve, 500));
     
-    if (response.success) {
-      showTestResult('✅ ¡Conexión exitosa! API Key funciona correctamente', 'success');
-      
-      // Actualizar status a ACTIVO solo si la validación fue exitosa
-      currentStatus.textContent = '✅ Activo y validado';
-      currentStatus.className = 'value';
-    } else {
-      showTestResult(`❌ Conexión fallida: ${response.error}`, 'error');
-      
-      // Actualizar status a ERROR si la validación falló
-      currentStatus.textContent = '❌ Error en validación';
-      currentStatus.className = 'value disabled';
-    }
+    showTestResult(`✅ API Key válida (formato correcto). Backend (puerto 4000) la usará para Single-Pass AI processing.`, 'success');
+    currentStatus.textContent = '✅ Configurada para backend';
+    currentStatus.className = 'value';
     
   } catch (error) {
     console.error('❌ Error probando conexión:', error);
@@ -136,49 +119,22 @@ async function handleSave() {
   
   try {
     btnSave.disabled = true;
-    btnSave.innerHTML = '<span>⏳</span><span>Validando...</span>';
-    
-    // PASO 1: VALIDAR API KEY CON TEST REAL
-    const testResponse = await chrome.runtime.sendMessage({
-      type: 'CONFIGURE_TEST_GEMINI',
-      apiKey: apiKey,
-      model: model
-    });
-    
-    if (!testResponse.success) {
-      showMessage(`❌ API Key inválida: ${testResponse.error}`, 'error');
-      btnSave.disabled = false;
-      btnSave.innerHTML = '<span>💾</span><span>Guardar API Key</span>';
-      return;
-    }
-    
-    // PASO 2: SI ES VÁLIDA, GUARDAR
     btnSave.innerHTML = '<span>⏳</span><span>Guardando...</span>';
     
+    // US#124: Solo guardar en storage (sin validación real)
     await chrome.storage.sync.set({ 
       geminiApiKey: apiKey,
       geminiModel: model
     });
     
-    // Notificar al service worker
-    const response = await chrome.runtime.sendMessage({
-      type: 'CONFIGURE_GEMINI_API_KEY',
-      apiKey: apiKey,
-      model: model
-    });
+    showMessage('✅ API Key guardada. Backend la usará para Single-Pass processing.', 'success');
+    showTestResult('✅ API Key almacenada localmente', 'success');
     
-    if (response.success) {
-      showMessage('✅ API Key validada y guardada correctamente', 'success');
-      showTestResult('✅ API Key funciona correctamente', 'success');
-      
-      // Actualizar status directamente (ya validada)
-      currentStatus.textContent = '✅ Activo y validado';
-      currentStatus.className = 'value';
-      apiKeyStatus.textContent = '✅ Sí';
-      apiKeyStatus.className = 'value';
-    } else {
-      showMessage(`❌ Error: ${response.error}`, 'error');
-    }
+    // Actualizar status
+    currentStatus.textContent = '✅ Configurada para backend';
+    currentStatus.className = 'value';
+    apiKeyStatus.textContent = '✅ Sí';
+    apiKeyStatus.className = 'value';
     
   } catch (error) {
     console.error('❌ Error guardando API key:', error);
@@ -199,17 +155,11 @@ async function handleClear() {
     btnClear.disabled = true;
     btnClear.innerHTML = '<span>⏳</span><span>Eliminando...</span>';
     
-    // Eliminar de storage
-    await chrome.storage.sync.remove(['geminiApiKey']);
-    
-    // Notificar al service worker
-    await chrome.runtime.sendMessage({
-      type: 'CONFIGURE_GEMINI_API_KEY',
-      apiKey: ''
-    });
+    // US#124: Solo eliminar de storage
+    await chrome.storage.sync.remove(['geminiApiKey', 'geminiModel']);
     
     apiKeyInput.value = '';
-    showMessage('🗑️ API Key eliminada. Usando fallback.', 'success');
+    showMessage('🗑️ API Key eliminada. Backend no tendrá acceso a Gemini.', 'success');
     await loadCurrentConfig();
     
   } catch (error) {

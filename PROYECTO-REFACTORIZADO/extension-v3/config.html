@@ -247,12 +247,12 @@
     <!-- INFO -->
     <div class="section">
       <div class="info-box">
-        <strong>🤖 US#121 - IA Ligera (FASE 1)</strong><br>
-        Gemini Flash 8B realiza pre-análisis rápido de eventos capturados:
+        <strong>🤖 US#124 - Backend Single-Pass AI</strong><br>
+        La API key se almacena localmente. El backend (puerto 4000) la usará para:
         <ul style="margin-top: 8px; padding-left: 20px;">
-          <li>Pre-ranking de selectores</li>
-          <li>Detección de flujo de ventanas</li>
-          <li>Clasificación de intenciones</li>
+          <li>✅ Single-Pass test generation (1 llamada vs N+1)</li>
+          <li>✅ Adaptive Token Manager (rate limiting)</li>
+          <li>✅ Semantic fragmentation para sesiones grandes</li>
         </ul>
         <br>
         <strong>📍 Obtén tu API key gratis:</strong><br>
@@ -327,10 +327,11 @@
     <!-- NOTAS -->
     <div class="section">
       <div class="info-box">
-        <strong>⚠️ Importante:</strong><br>
-        • Sin API key, la extensión usa <code>fallback</code> (análisis básico sin IA)<br>
-        • La extensión NO envía tu API key a servidores externos<br>
-        • Se almacena localmente en Chrome Sync Storage
+        <strong>⚠️ Importante (US#124):</strong><br>
+        • La extensión ya NO usa Gemini (capture-only mode)<br>
+        • API key se almacena localmente en Chrome Sync Storage<br>
+        • Backend la leerá al recibir eventos para procesamiento Single-Pass<br>
+        • Sin API key, backend no podrá generar tests optimizados
       </div>
     </div>
   </div>
