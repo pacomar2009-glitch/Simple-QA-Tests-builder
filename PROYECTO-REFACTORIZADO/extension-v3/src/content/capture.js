@@ -417,8 +417,16 @@ function sendActionToBackground(action) {
   chrome.runtime.sendMessage({
     type: 'USER_ACTION',
     payload: action
-  }).catch(error => {
-    console.warn('⚠️ Error enviando acción:', error);
+  }, (response) => {
+    if (chrome.runtime.lastError) {
+      console.warn('⚠️ Error enviando acción:', chrome.runtime.lastError.message);
+      return;
+    }
+    if (!response || !response.success) {
+      console.warn('⚠️ Acción no procesada:', response?.error || 'Unknown error');
+    } else {
+      console.log(`✅ Acción enviada: ${action.type}`);
+    }
   });
 }
 
