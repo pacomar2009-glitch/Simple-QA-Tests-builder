@@ -3,6 +3,7 @@
 
 const { AdaptiveTokenManager } = require('../ai/adaptive-token-manager');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
+const { PlaywrightTestGenerator } = require('../generators/playwright-test-generator');
 
 class TestGenerationOrchestrator {
   constructor() {
@@ -20,10 +21,13 @@ class TestGenerationOrchestrator {
       model: 'gemini-2.0-flash-exp'
     });
     
+    // Playwright Test Generator
+    this.testGenerator = new PlaywrightTestGenerator(apiKey);
+    
     // Estado de jobs
     this.jobs = new Map();
     
-    console.log('✅ TestGenerationOrchestrator inicializado con AdaptiveTokenManager');
+    console.log('✅ TestGenerationOrchestrator inicializado con AdaptiveTokenManager + PlaywrightTestGenerator');
   }
   
   /**
@@ -91,7 +95,19 @@ class TestGenerationOrchestrator {
         result = await this.processFragmented(jobId, strategy.batches, metadata);
       }
       
-      // PASO 3: Guardar resultado
+      // PASO 3: Generar test Playwright ejecutable
+      console.log(`[${jobId}] 🎭 Generando test Playwright...`);
+      this.updateProgress(jobId, 95, 'Generando código Playwright...');
+      
+      const testResult = await this.testGenerator.generateAndSave(result, {
+        sessionId,
+        sessionName: metadata.sessionName || `Session ${sessionId}`,
+        timestamp: Date.now()
+      });
+      
+      console.log(`[${jobId}] ✅ Test generado: ${testResult.filename}`);
+      
+      // PASO 4: Guardar resultado completo
       this.jobs.set(jobId, {
         ...this.jobs.get(jobId),
         status: 'completed',
@@ -102,15 +118,22 @@ class TestGenerationOrchestrator {
           strategy: strategy.type,
           originalStepsCount: steps.length,
           optimizedStepsCount: result.optimizedSteps?.length || 0,
+          playwrightTest: {
+            filename: testResult.filename,
+            path: testResult.saved.path,
+            size: testResult.saved.size,
+            language: testResult.language,
+            framework: testResult.framework
+          },
           savings: {
             apiCalls: 1, // Single-pass siempre usa 1 llamada por batch
-            tokensUsed: result.tokensUsed,
+            tokensUsed: result.tokensUsed + testResult.tokensUsed,
             latency: result.latency
           }
         }
       });
       
-      console.log(`[${jobId}] ✅ Procesamiento completado`);
+      console.log(`[${jobId}] ✅ Procesamiento completado con test Playwright`);
       
     } catch (error) {
       console.error(`[${jobId}] ❌ Error en processSession:`, error);
