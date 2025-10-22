@@ -8,6 +8,7 @@ const btnRecord = document.getElementById('btn-record');
 const btnStop = document.getElementById('btn-stop');
 const btnExport = document.getElementById('btn-export'); // US#92
 const btnConfig = document.getElementById('btn-config'); // US#121
+const btnClear = document.getElementById('btn-clear'); // CLEAR/RESET
 const statusEl = document.getElementById('status');
 const eventsCountEl = document.getElementById('events-count');
 const sessionIdEl = document.getElementById('session-id');
@@ -34,6 +35,7 @@ async function init() {
   btnStop.addEventListener('click', handleStop);
   btnExport.addEventListener('click', handleExport); // US#92
   btnConfig.addEventListener('click', handleConfig); // US#121
+  btnClear.addEventListener('click', handleClear); // CLEAR/RESET
   
   console.log('✅ Popup inicializado');
 }
@@ -216,7 +218,41 @@ function handleConfig() {
   chrome.tabs.create({ url: chrome.runtime.getURL('config.html') });
 }
 
-// � MOSTRAR NOTIFICACIÓN
+// 🗑️ LIMPIAR/RESET CASOS Y CONTADOR
+async function handleClear() {
+  console.log('🗑️ Limpiando casos...');
+  
+  // Confirmar acción destructiva
+  if (!confirm('¿Seguro que deseas limpiar TODOS los casos? Esta acción no se puede deshacer.')) {
+    return;
+  }
+  
+  try {
+    btnClear.disabled = true;
+    btnClear.innerHTML = '<span>⏳</span><span>Limpiando...</span>';
+    
+    const response = await chrome.runtime.sendMessage({ type: 'CLEAR_ALL_CASES' });
+    
+    if (response.success) {
+      showNotification('✅ Casos limpiados correctamente', 'success');
+      await updateState(); // Actualizar contador
+      
+      // Deshabilitar export si no hay casos
+      btnExport.disabled = true;
+    } else {
+      showNotification('❌ Error: ' + response.error, 'error');
+    }
+    
+  } catch (error) {
+    console.error('❌ Error limpiando casos:', error);
+    showNotification('❌ Error limpiando casos', 'error');
+  } finally {
+    btnClear.disabled = false;
+    btnClear.innerHTML = '<span>🗑️</span><span>Limpiar Casos</span>';
+  }
+}
+
+// 📢 MOSTRAR NOTIFICACIÓN
 function showNotification(message, type = 'info') {
   console.log(`[${type.toUpperCase()}] ${message}`);
   

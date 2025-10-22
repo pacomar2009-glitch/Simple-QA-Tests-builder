@@ -174,6 +174,22 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       });
       return false;
       
+    case 'CLEAR_ALL_CASES':
+      // 🗑️ LIMPIAR TODOS LOS CASOS
+      state.casesQueue.clearAllCases()
+        .then(() => {
+          // Reset badge
+          chrome.action.setBadgeText({ text: '' });
+          sendResponse({ 
+            success: true, 
+            message: 'Todos los casos eliminados correctamente'
+          });
+        })
+        .catch(error => {
+          sendResponse({ success: false, error: error.message });
+        });
+      return true;
+      
     case 'EXPORT_QUEUE_DATA':
       sendResponse({ 
         success: true, 
