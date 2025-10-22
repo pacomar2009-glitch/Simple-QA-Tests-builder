@@ -2,11 +2,12 @@
   "name": "testbuilder-agentic-v3",
   "version": "3.0.0",
   "description": "Extensión Chrome con arquitectura agéntica - US#120, US#121, US#55, US#56, US#57",
+  "type": "module",
   "main": "src/background/service-worker.js",
   "scripts": {
-    "test": "jest",
-    "test:watch": "jest --watch",
-    "test:coverage": "jest --coverage",
+    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js",
+    "test:watch": "node --experimental-vm-modules node_modules/jest/bin/jest.js --watch",
+    "test:coverage": "node --experimental-vm-modules node_modules/jest/bin/jest.js --coverage",
     "lint": "eslint src/**/*.js",
     "build": "echo 'Extension ready to load in Chrome'"
   },
@@ -23,7 +24,8 @@
   "devDependencies": {
     "@types/chrome": "^0.0.268",
     "eslint": "^8.56.0",
-    "jest": "^29.7.0"
+    "jest": "^29.7.0",
+    "jest-environment-jsdom": "^29.7.0"
   },
   "dependencies": {}
 }
