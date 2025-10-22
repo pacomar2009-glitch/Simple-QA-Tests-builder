@@ -229,8 +229,11 @@ describe('GeminiAIClient', () => {
       
       const stats = client.getCacheStats();
       
-      expect(stats.size).toBe(2);
-      expect(stats.maxSize).toBe(client.maxCacheSize);
+      // Nueva estructura con métricas detalladas
+      expect(stats.cache.size).toBe(2);
+      expect(stats.cache.maxSize).toBe(client.maxCacheSize);
+      expect(stats.performance).toBeDefined();
+      expect(stats.summary).toBeDefined();
     });
   });
   

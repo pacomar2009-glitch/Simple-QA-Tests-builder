@@ -27,6 +27,15 @@ export class GeminiAIClient {
     this.maxCacheSize = 100;
     this.isInitialized = false;
     
+    // 📊 Métricas de cache y rendimiento
+    this.metrics = {
+      cacheHits: 0,
+      cacheMisses: 0,
+      totalAnalyses: 0,
+      totalLatencyMs: 0,
+      fallbackCount: 0
+    };
+    
     console.log('🤖 Gemini IA Ligera creada (esperando API key)');
   }
   
@@ -134,10 +143,12 @@ export class GeminiAIClient {
    */
   async preAnalyzeElement(elementData, pageContext) {
     const startTime = Date.now();
+    this.metrics.totalAnalyses++;
     
     // Si no hay API key, usar fallback
     if (!this.isInitialized || !this.apiKey) {
       console.log('🔄 Usando fallback analysis (sin API key)');
+      this.metrics.fallbackCount++;
       return this.fallbackAnalysis(elementData, pageContext);
     }
     
@@ -145,9 +156,15 @@ export class GeminiAIClient {
     const cacheKey = this.getCacheKey(elementData);
     if (this.analysisCache.has(cacheKey)) {
       const cachedResult = this.analysisCache.get(cacheKey);
-      console.log(`⚡ Cache HIT para ${cacheKey} (${Date.now() - startTime}ms)`);
+      const latency = Date.now() - startTime;
+      this.metrics.cacheHits++;
+      this.metrics.totalLatencyMs += latency;
+      console.log(`⚡ Cache HIT para ${cacheKey} (${latency}ms) - Hit rate: ${this.getCacheHitRate()}%`);
       return cachedResult;
     }
+    
+    // Cache MISS - necesitamos llamar a Gemini
+    this.metrics.cacheMisses++;
     
     // Construir prompt ligero
     const prompt = this.buildLightweightPrompt(elementData, pageContext);
@@ -216,20 +233,25 @@ export class GeminiAIClient {
       }
       
       // Enriquecer con metadata
+      const latency = Date.now() - startTime;
       analysis.source = 'gemini-ai';
       analysis.model = this.model;
-      analysis.latencyMs = Date.now() - startTime;
+      analysis.latencyMs = latency;
       analysis.phase = 'PHASE_1_LIGHTWEIGHT';
       analysis.note = 'Pre-análisis. IA Agéntica refinará en FASE 2';
+      
+      // Registrar métricas
+      this.metrics.totalLatencyMs += latency;
       
       // Guardar en cache
       this.addToCache(cacheKey, analysis);
       
-      console.log(`✅ Pre-análisis Gemini completo (${analysis.latencyMs}ms)`);
+      console.log(`✅ Pre-análisis Gemini completo (${latency}ms) - Promedio: ${this.getAverageLatency()}ms`);
       return analysis;
       
     } catch (error) {
       console.error('❌ Error en análisis Gemini ligero:', error);
+      this.metrics.fallbackCount++;
       return this.fallbackAnalysis(elementData, pageContext);
     }
   }
@@ -388,13 +410,59 @@ OUTPUT (JSON estricto, SIN explicaciones adicionales):
   }
   
   /**
-   * Estadísticas de cache
+   * Calcula hit rate del cache en porcentaje
+   */
+  getCacheHitRate() {
+    const totalCacheRequests = this.metrics.cacheHits + this.metrics.cacheMisses;
+    if (totalCacheRequests === 0) return 0;
+    return ((this.metrics.cacheHits / totalCacheRequests) * 100).toFixed(1);
+  }
+  
+  /**
+   * Calcula latencia promedio en ms
+   */
+  getAverageLatency() {
+    if (this.metrics.totalAnalyses === 0) return 0;
+    return (this.metrics.totalLatencyMs / this.metrics.totalAnalyses).toFixed(2);
+  }
+  
+  /**
+   * Estadísticas completas de rendimiento
    */
   getCacheStats() {
     return {
-      size: this.analysisCache.size,
-      maxSize: this.maxCacheSize,
-      hitRate: this.cacheHits / (this.cacheHits + this.cacheMisses) || 0
+      cache: {
+        size: this.analysisCache.size,
+        maxSize: this.maxCacheSize,
+        hits: this.metrics.cacheHits,
+        misses: this.metrics.cacheMisses,
+        hitRate: `${this.getCacheHitRate()}%`
+      },
+      performance: {
+        totalAnalyses: this.metrics.totalAnalyses,
+        averageLatencyMs: this.getAverageLatency(),
+        totalLatencyMs: this.metrics.totalLatencyMs,
+        fallbackCount: this.metrics.fallbackCount
+      },
+      summary: {
+        aiPowered: this.metrics.totalAnalyses - this.metrics.fallbackCount,
+        fallbackUsed: this.metrics.fallbackCount,
+        cacheEfficiency: `${this.getCacheHitRate()}% hit rate`,
+        targetMet: parseFloat(this.getCacheHitRate()) >= 40 ? '✅' : '⚠️'
+      }
     };
+  }
+  
+  /**
+   * Log de estadísticas en consola (útil para debugging)
+   */
+  logStats() {
+    const stats = this.getCacheStats();
+    console.log('📊 === GEMINI IA LIGERA - ESTADÍSTICAS ===');
+    console.log(`Cache: ${stats.cache.hits} hits, ${stats.cache.misses} misses (${stats.cache.hitRate} hit rate)`);
+    console.log(`Rendimiento: ${stats.performance.totalAnalyses} análisis, ${stats.performance.averageLatencyMs}ms promedio`);
+    console.log(`AI vs Fallback: ${stats.summary.aiPowered} IA / ${stats.summary.fallbackUsed} fallback`);
+    console.log(`Meta ≥40% cache hit: ${stats.summary.targetMet}`);
+    console.log('==========================================');
   }
 }

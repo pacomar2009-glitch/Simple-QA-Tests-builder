@@ -86,9 +86,22 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           sessionId: state.sessionId,
           geminiEnabled: state.geminiAI?.isInitialized || false, // US#121
           currentCase: state.casesQueue?.getCurrentCase() || null, // US#57
-          queueStats: state.casesQueue?.getStats() || null // US#57
+          queueStats: state.casesQueue?.getStats() || null, // US#57
+          geminiStats: state.geminiAI?.getCacheStats() || null // US#121: Estadísticas de cache
         }
       });
+      return false;
+    
+    case 'GET_GEMINI_STATS':
+      // Nuevo: Obtener estadísticas detalladas de Gemini IA
+      if (state.geminiAI) {
+        sendResponse({
+          success: true,
+          stats: state.geminiAI.getCacheStats()
+        });
+      } else {
+        sendResponse({ success: false, error: 'Gemini AI no inicializado' });
+      }
       return false;
       
     case 'USER_ACTION':
