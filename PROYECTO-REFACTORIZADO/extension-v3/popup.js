@@ -13,6 +13,7 @@ const sessionIdEl = document.getElementById('session-id');
 const geminiStatusEl = document.getElementById('gemini-status'); // US#121
 const casesCountEl = document.getElementById('cases-count'); // US#57
 const casesCompletedEl = document.getElementById('cases-completed'); // US#57
+const fallbackBanner = document.getElementById('fallback-banner'); // US#121 CRITICAL
 
 // Estado local
 let currentState = {
@@ -44,6 +45,15 @@ async function init() {
     });
   }
   
+  // US#121 CRITICAL: Link de configuración en banner de fallback
+  const fallbackConfigLink = document.getElementById('fallback-config-link');
+  if (fallbackConfigLink) {
+    fallbackConfigLink.addEventListener('click', (e) => {
+      e.preventDefault();
+      chrome.tabs.create({ url: chrome.runtime.getURL('config.html') });
+    });
+  }
+  
   console.log('✅ Popup inicializado');
 }
 
@@ -69,13 +79,15 @@ async function updateState() {
 
 // 🎨 RENDERIZAR ESTADO EN UI
 function renderState() {
-  // US#121: Estado de Gemini IA
+  // US#121 CRITICAL: Estado de Gemini IA + Banner de advertencia
   if (currentState.geminiEnabled) {
     geminiStatusEl.textContent = '✅ Activo';
     geminiStatusEl.style.color = '#22c55e';
+    fallbackBanner.classList.remove('show'); // Ocultar banner
   } else {
     geminiStatusEl.textContent = '⚠️ Fallback';
     geminiStatusEl.style.color = '#f59e0b';
+    fallbackBanner.classList.add('show'); // MOSTRAR BANNER CRÍTICO
   }
   
   // US#57: Estadísticas de casos
