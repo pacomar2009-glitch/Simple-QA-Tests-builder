@@ -3,10 +3,10 @@
 ## ðŸŽ¯ Resumen General
 
 ```
-Test Suites: 6 passed, 6 total
-Tests:       133 passed, 133 total
-Time:        ~4.7 seconds
-Global Coverage: 31.2%
+Test Suites: 7 passed, 7 total
+Tests:       155 passed, 155 total
+Time:        ~5.0 seconds
+Global Coverage: 31.17%
 HTML Report: coverage/lcov-report/index.html
 ```
 
@@ -15,11 +15,11 @@ HTML Report: coverage/lcov-report/index.html
 | Archivo | Statements | Branches | Functions | Lines | Tests |
 |---------|-----------|----------|-----------|-------|-------|
 | **gemini-client.js** | 57.31% | 53.65% | 90% | 56.79% | 18 |
-| **cases-queue.js** | 81.81% | 69.56% | 77.77% | 84.21% | 26 |
+| **cases-queue.js** | 92.72% | 80.43% | 96.29% | 95.78% | 26+22 |
 | **service-worker.js** | 0% | 0% | 0% | 0% | 29 (mocks)* |
-| **capture.js** | 0% | 0% | 0% | 0% | 0 |
+| **capture.js** | 0% | 0% | 0% | 0% | 37 (mocks)* |
 
-*Los tests de service-worker son integration tests con mocks, no miden cobertura directa pero validan comportamiento.
+*Los tests de service-worker y capture.js son integration tests con mocks de Chrome APIs, no miden cobertura directa pero validan comportamiento completo.
 
 ## ðŸ§ª Suites de Tests
 
@@ -437,3 +437,56 @@ coverageThreshold: {
 **Commits relevantes**:
 - Tests iniciales: `9ca8fb37e`
 - Integration tests: `dc0445b8b`
+ 
+ 
+### 7. cases-queue-integration.test.js (22 tests) 
+**Archivo**: `src/shared/cases-queue.js` (integration with service-worker)  
+**User Stories**: US#57 + US#120
+
+#### Tests Implementados:
+- **Case Creation on Recording Start** (3 tests)
+  -  Create new case automatically when recording starts
+  -  Start recording new case after creation
+  -  Assign sequential case numbers (#1, #2, #3...)
+
+- **Steps Management** (4 tests)
+  -  Add step to current case (captureUserAction integration)
+  -  Accumulate multiple steps in sequence
+  -  Not add step if no current case
+  -  Preserve step with AI pre-analysis data
+
+- **Case Switching** (3 tests)
+  -  Pause current case when switching to another
+  -  Resume paused case
+  -  Maintain separate step collections per case
+
+- **Case Completion** (3 tests)
+  -  Mark case as completed when recording stops
+  -  Save AI analysis when completing case
+  -  Calculate duration correctly
+
+- **Multiple Cases Management** (4 tests)
+  -  Persist multiple cases in storage
+  -  Get recent cases (last 3)
+  -  Delete case and renumber remaining cases
+  -  Clear current case ID if deleted case was active
+
+- **Queue Statistics** (2 tests)
+  -  Calculate accurate stats (total, draft, recording, completed, paused)
+  -  Export complete queue data
+
+- **Badge Integration** (1 test)
+  -  Provide case number for badge display (#N)
+
+- **Persistence and Recovery** (2 tests)
+  -  Load existing cases from storage on initialize
+  -  Preserve case state across service worker restarts
+
+#### Integración con Service Worker
+Estos tests validan que:
+- US#57: Cola de casos se crea automáticamente al grabar
+- US#57: Cada action capturado se añade como step al caso actual
+- US#57: Badge muestra '#N' del caso actual
+- US#57: Cambio entre casos sin cerrar popup
+- US#120: Casos persisten en chrome.storage.local
+- US#121: Steps incluyen aiPreAnalysis de Gemini

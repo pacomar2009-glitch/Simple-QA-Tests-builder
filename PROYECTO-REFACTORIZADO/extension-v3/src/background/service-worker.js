@@ -4,7 +4,10 @@
 // 🤖 US#121 - Import Gemini IA Ligera
 import { GeminiAIClient } from '../ai-ligera/gemini-client.js';
 
-console.log('🚀 TestBuilder Agéntico v3 - Service Worker iniciado (US#120 + US#121)');
+// 📋 US#57 - Import CasesQueueManager
+import { CasesQueueManager } from '../shared/cases-queue.js';
+
+console.log('🚀 TestBuilder Agéntico v3 - Service Worker iniciado (US#120 + US#121 + US#57)');
 
 // 🗄️ Estado global de grabación
 const state = {
@@ -13,7 +16,8 @@ const state = {
   debuggerAttached: false,
   capturedEvents: [],
   sessionId: null,
-  geminiAI: null // US#121: Cliente Gemini IA
+  geminiAI: null, // US#121: Cliente Gemini IA
+  casesQueue: null // US#57: Gestor de cola de casos
 };
 
 // 🤖 US#121 - Inicializar Gemini IA Ligera
@@ -29,9 +33,19 @@ async function initializeGeminiAI() {
   }
 }
 
-// Inicializar Gemini al cargar service worker
-initializeGeminiAI().catch(error => {
-  console.error('❌ Error inicializando Gemini:', error);
+// 📋 US#57 - Inicializar CasesQueueManager
+async function initializeCasesQueue() {
+  state.casesQueue = new CasesQueueManager();
+  await state.casesQueue.initialize();
+  console.log('📋 CasesQueueManager inicializado correctamente');
+}
+
+// Inicializar sistemas al cargar service worker
+Promise.all([
+  initializeGeminiAI(),
+  initializeCasesQueue()
+]).catch(error => {
+  console.error('❌ Error inicializando service worker:', error);
 });
 
 // 🎧 LISTENER: Comandos de teclado
@@ -67,7 +81,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           isRecording: state.isRecording,
           eventsCount: state.capturedEvents.length,
           sessionId: state.sessionId,
-          geminiEnabled: state.geminiAI?.isInitialized || false // US#121
+          geminiEnabled: state.geminiAI?.isInitialized || false, // US#121
+          currentCase: state.casesQueue?.getCurrentCase() || null, // US#57
+          queueStats: state.casesQueue?.getStats() || null // US#57
         }
       });
       return false;
@@ -99,6 +115,78 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         });
       return true;
       
+    // 📋 US#57 - Nuevos handlers para gestión de cola de casos
+    case 'CREATE_CASE':
+      state.casesQueue.addNewCase(message.caseData || {})
+        .then(newCase => {
+          sendResponse({ success: true, case: newCase });
+        })
+        .catch(error => {
+          sendResponse({ success: false, error: error.message });
+        });
+      return true;
+      
+    case 'SWITCH_CASE':
+      state.casesQueue.startRecordingCase(message.caseId)
+        .then(result => {
+          if (result && state.isRecording) {
+            // Actualizar badge con nuevo número de caso
+            const currentCase = state.casesQueue.getCurrentCase();
+            if (currentCase) {
+              chrome.action.setBadgeText({ 
+                text: `#${currentCase.number}`, 
+                tabId: state.currentTabId 
+              });
+            }
+          }
+          sendResponse({ success: result, currentCase: state.casesQueue.getCurrentCase() });
+        })
+        .catch(error => {
+          sendResponse({ success: false, error: error.message });
+        });
+      return true;
+      
+    case 'DELETE_CASE':
+      state.casesQueue.deleteCase(message.caseId)
+        .then(result => {
+          sendResponse({ success: result });
+        })
+        .catch(error => {
+          sendResponse({ success: false, error: error.message });
+        });
+      return true;
+      
+    case 'GET_CASES':
+      const limit = message.limit || 3;
+      const cases = state.casesQueue.getRecentCases(limit);
+      sendResponse({ 
+        success: true, 
+        cases,
+        total: state.casesQueue.cases.length 
+      });
+      return false;
+      
+    case 'GET_ALL_CASES':
+      sendResponse({ 
+        success: true, 
+        cases: state.casesQueue.getAllCases() 
+      });
+      return false;
+      
+    case 'GET_QUEUE_STATS':
+      sendResponse({ 
+        success: true, 
+        stats: state.casesQueue.getStats() 
+      });
+      return false;
+      
+    case 'EXPORT_QUEUE_DATA':
+      sendResponse({ 
+        success: true, 
+        data: state.casesQueue.exportData() 
+      });
+      return false;
+      
     default:
       console.warn(`⚠️ Tipo de mensaje desconocido: ${message.type}`);
       sendResponse({ success: false, error: 'Unknown message type' });
@@ -121,6 +209,17 @@ async function startRecording(tabId) {
       tabId = activeTab.id;
     }
     
+    // 📋 US#57: Crear nuevo caso en la cola
+    const tabInfo = await chrome.tabs.get(tabId);
+    const newCase = await state.casesQueue.addNewCase({
+      name: `Caso ${state.casesQueue.cases.length + 1}`,
+      description: `Grabación automática desde ${new Date().toLocaleString()}`,
+      url: tabInfo.url
+    });
+    
+    // 📋 US#57: Iniciar grabación del caso
+    await state.casesQueue.startRecordingCase(newCase.id);
+    
     // 2. Adjuntar Chrome Debugger (MCP Chrome DevTools)
     await attachDebugger(tabId);
     
@@ -133,18 +232,20 @@ async function startRecording(tabId) {
     // 4. Notificar content script
     await chrome.tabs.sendMessage(tabId, {
       type: 'RECORDING_STARTED',
-      sessionId: state.sessionId
+      sessionId: state.sessionId,
+      caseId: newCase.id, // US#57: Incluir ID del caso
+      caseNumber: newCase.number // US#57: Incluir número del caso
     });
     
-    // 5. Badge visual con indicador de modo
+    // 5. Badge visual con número de caso (US#57)
+    const badgeText = `#${newCase.number}`;
     const geminiEnabled = state.geminiAI?.isInitialized || false;
-    const badgeText = geminiEnabled ? 'REC' : 'FB'; // FB = Fallback
     const badgeColor = geminiEnabled ? '#FF0000' : '#f59e0b'; // Naranja si es fallback
     
     await chrome.action.setBadgeText({ text: badgeText, tabId });
     await chrome.action.setBadgeBackgroundColor({ color: badgeColor, tabId });
     
-    console.log(`✅ Grabación iniciada - Session: ${state.sessionId}`);
+    console.log(`✅ Grabación iniciada - Case: #${newCase.number} - Session: ${state.sessionId}`);
     
     // 🚨 US#121 FIX: Notificación explícita si está en modo fallback
     if (!geminiEnabled) {
@@ -166,7 +267,9 @@ async function startRecording(tabId) {
       success: true,
       sessionId: state.sessionId,
       tabId,
-      geminiEnabled // Informar al popup del modo actual
+      geminiEnabled, // Informar al popup del modo actual
+      caseId: newCase.id, // US#57: Incluir ID del caso
+      caseNumber: newCase.number // US#57: Incluir número del caso
     };
     
   } catch (error) {
@@ -184,6 +287,9 @@ async function stopRecording() {
   }
   
   try {
+    // 📋 US#57: Obtener caso actual antes de completarlo
+    const currentCase = state.casesQueue.getCurrentCase();
+    
     // 1. Detach debugger
     if (state.debuggerAttached && state.currentTabId) {
       await detachDebugger(state.currentTabId);
@@ -199,17 +305,25 @@ async function stopRecording() {
       await chrome.action.setBadgeText({ text: '', tabId: state.currentTabId });
     }
     
-    // 4. Guardar sesión en storage
+    // 4. Guardar sesión en storage (mantener compatibilidad)
     const session = {
       sessionId: state.sessionId,
       events: state.capturedEvents,
       timestamp: new Date().toISOString(),
-      eventsCount: state.capturedEvents.length
+      eventsCount: state.capturedEvents.length,
+      caseId: currentCase?.id, // US#57: Vincular con caso
+      caseNumber: currentCase?.number // US#57: Vincular con número
     };
     
     await chrome.storage.local.set({
       [`session_${state.sessionId}`]: session
     });
+    
+    // 📋 US#57: Completar caso actual
+    if (currentCase) {
+      await state.casesQueue.stopCurrentCase();
+      console.log(`✅ Caso #${currentCase.number} completado con ${currentCase.steps.length} pasos`);
+    }
     
     console.log(`✅ Grabación detenida - ${state.capturedEvents.length} eventos capturados`);
     
@@ -217,7 +331,10 @@ async function stopRecording() {
       success: true,
       sessionId: state.sessionId,
       eventsCount: state.capturedEvents.length,
-      events: state.capturedEvents
+      events: state.capturedEvents,
+      caseId: currentCase?.id, // US#57: Incluir ID del caso
+      caseNumber: currentCase?.number, // US#57: Incluir número del caso
+      caseSteps: currentCase?.steps.length || 0 // US#57: Total de steps en el caso
     };
     
     // 5. Reset estado
@@ -319,6 +436,7 @@ function onDebuggerEvent(source, method, params) {
 
 // 📝 CAPTURAR ACCIÓN DE USUARIO (desde content script)
 // US#121: Ahora incluye pre-análisis con Gemini IA Ligera
+// US#57: Añade steps al caso actual en la cola
 async function captureUserAction(action) {
   console.log(`📝 Acción capturada (iniciando pre-análisis): ${action.type}`);
   
@@ -366,6 +484,26 @@ async function captureUserAction(action) {
   };
   
   state.capturedEvents.push(event);
+  
+  // 📋 US#57: Añadir step al caso actual
+  if (state.casesQueue) {
+    const stepData = {
+      number: state.capturedEvents.length,
+      type: action.type,
+      selector: action.selector,
+      value: action.value || null,
+      text: action.text || null,
+      tagName: action.tagName,
+      attributes: action.attributes,
+      position: action.position,
+      url: action.url,
+      pageTitle: action.pageTitle,
+      timestamp: Date.now(),
+      aiPreAnalysis: aiPreAnalysis || null
+    };
+    
+    await state.casesQueue.addStepToCurrentCase(stepData);
+  }
   
   console.log(`📝 Evento guardado con pre-análisis IA:`, {
     type: action.type,
