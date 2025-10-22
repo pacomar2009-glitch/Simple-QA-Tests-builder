@@ -335,26 +335,42 @@ async function handleGenerateTest() {
         throw new Error('Backend no responde');
       }
     } catch (healthError) {
-      console.log('⚠️ Backend no disponible, verificando auto-start...');
-      progressText.textContent = '� Verificando backend...';
+      console.log('⚠️ Backend no disponible, intentando arrancar automáticamente...');
+      progressText.textContent = '🚀 Arrancando backend...';
       
-      // Mostrar diálogo de ayuda
-      const startBackend = confirm(
-        '❌ Backend no disponible en http://localhost:4000\n\n' +
-        '¿Deseas abrir instrucciones para iniciar el servidor?\n\n' +
-        'Necesitas ejecutar:\n' +
-        '  • gemini-mcp-server/START-BACKEND.bat\n' +
-        '  O manualmente: cd gemini-mcp-server && npm start'
-      );
+      // Intentar arrancar backend automáticamente
+      const autoStarted = await autoStartBackend();
       
-      if (startBackend) {
-        // Abrir una nueva pestaña con instrucciones
-        chrome.tabs.create({
-          url: chrome.runtime.getURL('backend-help.html')
-        });
+      if (!autoStarted) {
+        // Si falla auto-start, mostrar diálogo de ayuda
+        const showHelp = confirm(
+          '❌ No se pudo arrancar el backend automáticamente\n\n' +
+          'Esto puede deberse a:\n' +
+          '  • Extensión no tiene permisos necesarios\n' +
+          '  • Backend ya está corriendo en otro proceso\n\n' +
+          '¿Deseas ver instrucciones para iniciarlo manualmente?'
+        );
+        
+        if (showHelp) {
+          chrome.tabs.create({
+            url: chrome.runtime.getURL('backend-help.html')
+          });
+        }
+        
+        throw new Error('Backend no disponible. Por favor, inícialo manualmente.');
       }
       
-      throw new Error('Backend no disponible. Inicia el servidor y vuelve a intentar.');
+      // Esperar a que el backend esté listo (máximo 15s)
+      console.log('⏳ Esperando a que el backend esté listo...');
+      progressText.textContent = '⏳ Esperando backend...';
+      
+      const backendReady = await waitForBackendReady(backendUrl, 15000);
+      
+      if (!backendReady) {
+        throw new Error('❌ Backend arrancado pero no responde. Verifica la consola del servidor.');
+      }
+      
+      console.log('✅ Backend listo y disponible');
     }
     
     // Preparar payload
@@ -492,7 +508,83 @@ function handleProgressUpdate(data) {
   }
 }
 
-// � AUTO-START BACKEND
+// 🚀 AUTO-START BACKEND
+async function autoStartBackend() {
+  try {
+    console.log('🚀 Intentando arrancar backend con native messaging...');
+    
+    // Intentar con native messaging host
+    const response = await new Promise((resolve, reject) => {
+      chrome.runtime.sendNativeMessage(
+        'com.testbuilder.native_host',
+        { command: 'start_backend' },
+        (response) => {
+          if (chrome.runtime.lastError) {
+            console.warn('⚠️ Native messaging no disponible:', chrome.runtime.lastError.message);
+            reject(chrome.runtime.lastError);
+          } else {
+            resolve(response);
+          }
+        }
+      );
+    });
+    
+    if (response && response.success) {
+      console.log('✅ Backend arrancado via native host, PID:', response.pid);
+      return true;
+    }
+    
+    return false;
+    
+  } catch (error) {
+    console.log('⚠️ Native messaging falló, intentando con service worker...');
+    
+    // Fallback: Service worker
+    try {
+      const response = await chrome.runtime.sendMessage({ type: 'START_BACKEND' });
+      if (response && response.success) {
+        console.log('✅ Backend arrancado via service worker');
+        return true;
+      }
+    } catch (swError) {
+      console.error('❌ Service worker también falló:', swError);
+    }
+    
+    return false;
+  }
+}
+
+// ⏳ WAIT FOR BACKEND READY
+async function waitForBackendReady(backendUrl, maxWaitMs) {
+  const startTime = Date.now();
+  const checkInterval = 1000; // Check cada 1s
+  
+  while (Date.now() - startTime < maxWaitMs) {
+    try {
+      const healthCheck = await fetch(`${backendUrl}/health`, {
+        method: 'GET',
+        signal: AbortSignal.timeout(2000)
+      });
+      
+      if (healthCheck.ok) {
+        return true;
+      }
+    } catch (error) {
+      // Continuar esperando
+    }
+    
+    // Actualizar UI
+    const elapsed = Math.floor((Date.now() - startTime) / 1000);
+    progressText.textContent = `⏳ Esperando backend... (${elapsed}s / ${Math.floor(maxWaitMs/1000)}s)`;
+    
+    // Esperar antes del siguiente check
+    await new Promise(resolve => setTimeout(resolve, checkInterval));
+  }
+  
+  return false;
+}
+
+// 🚀 AUTO-START BACKEND
 async function startBackendAutomatically() {
   try {
     console.log('🚀 Intentando arrancar backend...');

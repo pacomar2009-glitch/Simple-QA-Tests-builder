@@ -649,42 +649,103 @@ async function handleExportZIP(sendResponse) {
 // 🚀 START BACKEND SERVER
 async function startBackendServer() {
   try {
-    console.log('🚀 Arrancando backend en puerto 4000...');
+    console.log('🚀 Intentando arrancar backend automáticamente...');
     
-    // Usar chrome.runtime.sendNativeMessage para ejecutar script nativo
-    // O usar fetch con un endpoint de auto-start si el backend lo soporta
-    
-    // Alternativa: usar el backend con auto-restart o PM2
-    // Por ahora, intentamos hacer un "wake-up call" al endpoint
-    
-    // Opción 1: Intentar POST a un endpoint de bootstrap
+    // Opción 1: Intentar con native messaging
     try {
-      const response = await fetch('http://localhost:4000/bootstrap', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ autoStart: true })
+      const nativeResponse = await new Promise((resolve, reject) => {
+        chrome.runtime.sendNativeMessage(
+          'com.testbuilder.native_host',
+          { command: 'start_backend' },
+          (response) => {
+            if (chrome.runtime.lastError) {
+              reject(chrome.runtime.lastError);
+            } else {
+              resolve(response);
+            }
+          }
+        );
       });
       
-      if (response.ok) {
+      if (nativeResponse && nativeResponse.success) {
+        console.log('✅ Backend arrancado via native host, PID:', nativeResponse.pid);
         return { 
           success: true, 
-          message: 'Backend activado vía bootstrap' 
+          message: 'Backend arrancado via native messaging',
+          pid: nativeResponse.pid
         };
       }
-    } catch (e) {
-      // Continuar con otras opciones
+    } catch (nativeError) {
+      console.warn('⚠️ Native messaging no disponible:', nativeError.message);
     }
     
-    // Opción 2: Usar Native Messaging para ejecutar .bat
-    // Esto requiere un manifest de native messaging configurado
+    // Opción 2: Intentar crear un proceso usando downloads + open
+    // Crear un script temporal que arranca el backend
+    try {
+      const scriptContent = `@echo off
+cd /d "%~dp0"
+cd gemini-mcp-server
+start /min cmd /c npm start
+exit`;
+      
+      const blob = new Blob([scriptContent], { type: 'application/x-bat' });
+      const blobUrl = URL.createObjectURL(blob);
+      
+      const downloadId = await new Promise((resolve, reject) => {
+        chrome.downloads.download({
+          url: blobUrl,
+          filename: 'start-backend-temp.bat',
+          saveAs: false
+        }, (id) => {
+          URL.revokeObjectURL(blobUrl);
+          if (chrome.runtime.lastError) {
+            reject(chrome.runtime.lastError);
+          } else {
+            resolve(id);
+          }
+        });
+      });
+      
+      // Esperar a que termine la descarga
+      await new Promise((resolve, reject) => {
+        const listener = (delta) => {
+          if (delta.id === downloadId) {
+            if (delta.state && delta.state.current === 'complete') {
+              chrome.downloads.onChanged.removeListener(listener);
+              resolve();
+            } else if (delta.error) {
+              chrome.downloads.onChanged.removeListener(listener);
+              reject(new Error(delta.error.current));
+            }
+          }
+        };
+        chrome.downloads.onChanged.addListener(listener);
+        
+        // Timeout de 10s
+        setTimeout(() => {
+          chrome.downloads.onChanged.removeListener(listener);
+          reject(new Error('Download timeout'));
+        }, 10000);
+      });
+      
+      // Abrir (ejecutar) el archivo
+      chrome.downloads.open(downloadId);
+      
+      console.log('✅ Script de inicio ejecutado via downloads');
+      return { 
+        success: true, 
+        message: 'Backend start script ejecutado via downloads API' 
+      };
+      
+    } catch (downloadError) {
+      console.warn('⚠️ Downloads API falló:', downloadError.message);
+    }
     
-    // Opción 3: Instrucciones al usuario (fallback)
-    console.warn('⚠️ No se puede arrancar automáticamente desde extensión');
-    console.log('💡 El usuario debe ejecutar: START-BACKEND.bat');
-    
+    // Fallback: Instrucciones al usuario
+    console.warn('⚠️ No se pudo arrancar automáticamente');
     return { 
       success: false, 
-      message: 'Auto-start no disponible. Ejecuta START-BACKEND.bat manualmente.' 
+      message: 'Auto-start no disponible. Por favor ejecuta START-BACKEND.bat manualmente.' 
     };
     
   } catch (error) {

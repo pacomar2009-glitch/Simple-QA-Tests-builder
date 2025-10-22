@@ -1,0 +1,9 @@
+{
+  "name": "com.testbuilder.native_host",
+  "description": "TestBuilder Native Messaging Host",
+  "path": "C:\\WARE-LOA\\ITprojects\\Tests-Analytics\\PROYECTO-REFACTORIZADO\\extension-v3\\native-host\\testbuilder-host.js",
+  "type": "stdio",
+  "allowed_origins": [
+    "chrome-extension://YOUR_EXTENSION_ID_HERE/"
+  ]
+}
