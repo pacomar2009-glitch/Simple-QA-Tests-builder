@@ -133,12 +133,11 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       state.casesQueue.startRecordingCase(message.caseId)
         .then(result => {
           if (result && state.isRecording) {
-            // Actualizar badge con nuevo número de caso
+            // Actualizar badge con nuevo número de caso (GLOBAL)
             const currentCase = state.casesQueue.getCurrentCase();
             if (currentCase) {
               chrome.action.setBadgeText({ 
-                text: `#${currentCase.number}`, 
-                tabId: state.currentTabId 
+                text: `#${currentCase.number}` // SIN tabId = global
               });
             }
           }
@@ -237,21 +236,33 @@ async function startRecording(tabId) {
     state.sessionId = `session-${Date.now()}`;
     state.capturedEvents = [];
     
-    // 4. Notificar content script
-    await chrome.tabs.sendMessage(tabId, {
-      type: 'RECORDING_STARTED',
-      sessionId: state.sessionId,
-      caseId: newCase.id, // US#57: Incluir ID del caso
-      caseNumber: newCase.number // US#57: Incluir número del caso
-    });
+    // 4. Asegurar que content script está inyectado (evita "Receiving end does not exist")
+    try {
+      await ensureContentScriptInjected(tabId);
+    } catch (error) {
+      console.warn('⚠️ Content script ya existe o error al inyectar:', error.message);
+    }
     
-    // 5. Badge visual con número de caso (US#57)
+    // 5. Notificar content script (ahora seguro que existe)
+    try {
+      await chrome.tabs.sendMessage(tabId, {
+        type: 'RECORDING_STARTED',
+        sessionId: state.sessionId,
+        caseId: newCase.id, // US#57: Incluir ID del caso
+        caseNumber: newCase.number // US#57: Incluir número del caso
+      });
+    } catch (error) {
+      console.warn('⚠️ No se pudo notificar a content script:', error.message);
+      // No es crítico, content script puede no existir en páginas especiales
+    }
+    
+    // 6. Badge visual con número de caso (US#57) - GLOBAL (sin tabId para persistir)
     const badgeText = `#${newCase.number}`;
     const geminiEnabled = state.geminiAI?.isInitialized || false;
     const badgeColor = geminiEnabled ? '#FF0000' : '#f59e0b'; // Naranja si es fallback
     
-    await chrome.action.setBadgeText({ text: badgeText, tabId });
-    await chrome.action.setBadgeBackgroundColor({ color: badgeColor, tabId });
+    await chrome.action.setBadgeText({ text: badgeText }); // SIN tabId = global
+    await chrome.action.setBadgeBackgroundColor({ color: badgeColor }); // SIN tabId = global
     
     console.log(`✅ Grabación iniciada - Case: #${newCase.number} - Session: ${state.sessionId}`);
     
@@ -309,8 +320,8 @@ async function stopRecording() {
         type: 'RECORDING_STOPPED'
       }).catch(() => console.warn('Tab cerrado, ignorando'));
       
-      // 3. Limpiar badge
-      await chrome.action.setBadgeText({ text: '', tabId: state.currentTabId });
+      // 3. Limpiar badge (global)
+      await chrome.action.setBadgeText({ text: '' }); // SIN tabId = global
     }
     
     // 4. Guardar sesión en storage (mantener compatibilidad)
@@ -369,7 +380,25 @@ async function toggleRecording() {
   }
 }
 
-// 🐛 ADJUNTAR CHROME DEBUGGER (MCP Chrome DevTools)
+// � INYECTAR CONTENT SCRIPT (evita "Receiving end does not exist")
+async function ensureContentScriptInjected(tabId) {
+  try {
+    // Intentar inyectar content script programáticamente
+    await chrome.scripting.executeScript({
+      target: { tabId: tabId },
+      files: ['src/content/capture.js']
+    });
+    console.log('✅ Content script inyectado correctamente');
+  } catch (error) {
+    // Si falla, probablemente ya está inyectado o es página protegida
+    if (error.message.includes('Cannot access')) {
+      console.warn('⚠️ No se puede inyectar en esta página (chrome://, extensions://, etc.)');
+    }
+    throw error;
+  }
+}
+
+// �🐛 ADJUNTAR CHROME DEBUGGER (MCP Chrome DevTools)
 async function attachDebugger(tabId) {
   console.log(`🔗 Adjuntando Chrome Debugger a tab: ${tabId}`);
   
