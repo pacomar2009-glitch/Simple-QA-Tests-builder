@@ -5,8 +5,10 @@ console.log('⚙️ Página de configuración cargada');
 
 // Referencias DOM
 const apiKeyInput = document.getElementById('api-key');
+const btnTest = document.getElementById('btn-test');
 const btnSave = document.getElementById('btn-save');
 const btnClear = document.getElementById('btn-clear');
+const testResult = document.getElementById('test-result');
 const statusMessage = document.getElementById('status-message');
 const currentStatus = document.getElementById('current-status');
 const apiKeyStatus = document.getElementById('api-key-status');
@@ -16,6 +18,7 @@ async function init() {
   await loadCurrentConfig();
   
   // Listeners
+  btnTest.addEventListener('click', handleTest);
   btnSave.addEventListener('click', handleSave);
   btnClear.addEventListener('click', handleClear);
   
@@ -30,10 +33,16 @@ async function loadCurrentConfig() {
     
     if (result.geminiApiKey && result.geminiApiKey.trim() !== '') {
       apiKeyInput.value = result.geminiApiKey;
-      currentStatus.textContent = '✅ Activo';
-      currentStatus.className = 'value';
+      
+      // MOSTRAR ESTADO COMO "Configurada (requiere validación)"
+      // NO asumimos que funciona hasta que se valide
+      currentStatus.textContent = '⚠️ Configurada (no validada)';
+      currentStatus.className = 'value disabled';
       apiKeyStatus.textContent = '✅ Sí';
       apiKeyStatus.className = 'value';
+      
+      // Mostrar hint para validar
+      showTestResult('⚠️ API Key configurada. Click "Probar Conexión" para validar', 'testing');
     } else {
       currentStatus.textContent = '⚠️ Fallback (sin API key)';
       currentStatus.className = 'value disabled';
@@ -46,7 +55,60 @@ async function loadCurrentConfig() {
   }
 }
 
-// 💾 Guardar API Key
+// � Probar Conexión (TEST REAL)
+async function handleTest() {
+  const apiKey = apiKeyInput.value.trim();
+  
+  if (!apiKey) {
+    showTestResult('⚠️ Ingresa una API key primero', 'error');
+    return;
+  }
+  
+  // Validación básica formato
+  if (!apiKey.startsWith('AIzaSy')) {
+    showTestResult('⚠️ Formato inválido. Debe empezar con "AIzaSy"', 'error');
+    return;
+  }
+  
+  try {
+    btnTest.disabled = true;
+    btnTest.innerHTML = '<span>⏳</span><span>Probando...</span>';
+    showTestResult('⏳ Probando conexión con Gemini API...', 'testing');
+    
+    // Llamar al service worker para test real
+    const response = await chrome.runtime.sendMessage({
+      type: 'CONFIGURE_TEST_GEMINI',
+      apiKey: apiKey
+    });
+    
+    if (response.success) {
+      showTestResult('✅ ¡Conexión exitosa! API Key funciona correctamente', 'success');
+      
+      // Actualizar status a ACTIVO solo si la validación fue exitosa
+      currentStatus.textContent = '✅ Activo y validado';
+      currentStatus.className = 'value';
+    } else {
+      showTestResult(`❌ Conexión fallida: ${response.error}`, 'error');
+      
+      // Actualizar status a ERROR si la validación falló
+      currentStatus.textContent = '❌ Error en validación';
+      currentStatus.className = 'value disabled';
+    }
+    
+  } catch (error) {
+    console.error('❌ Error probando conexión:', error);
+    showTestResult(`❌ Error: ${error.message}`, 'error');
+    
+    // Error de conexión
+    currentStatus.textContent = '❌ Error de conexión';
+    currentStatus.className = 'value disabled';
+  } finally {
+    btnTest.disabled = false;
+    btnTest.innerHTML = '<span>🔍</span><span>Probar Conexión</span>';
+  }
+}
+
+// �💾 Guardar API Key (CON VALIDACIÓN)
 async function handleSave() {
   const apiKey = apiKeyInput.value.trim();
   
@@ -63,9 +125,24 @@ async function handleSave() {
   
   try {
     btnSave.disabled = true;
+    btnSave.innerHTML = '<span>⏳</span><span>Validando...</span>';
+    
+    // PASO 1: VALIDAR API KEY CON TEST REAL
+    const testResponse = await chrome.runtime.sendMessage({
+      type: 'CONFIGURE_TEST_GEMINI',
+      apiKey: apiKey
+    });
+    
+    if (!testResponse.success) {
+      showMessage(`❌ API Key inválida: ${testResponse.error}`, 'error');
+      btnSave.disabled = false;
+      btnSave.innerHTML = '<span>💾</span><span>Guardar API Key</span>';
+      return;
+    }
+    
+    // PASO 2: SI ES VÁLIDA, GUARDAR
     btnSave.innerHTML = '<span>⏳</span><span>Guardando...</span>';
     
-    // Guardar en storage
     await chrome.storage.sync.set({ geminiApiKey: apiKey });
     
     // Notificar al service worker
@@ -75,8 +152,14 @@ async function handleSave() {
     });
     
     if (response.success) {
-      showMessage('✅ API Key guardada correctamente', 'success');
-      await loadCurrentConfig();
+      showMessage('✅ API Key validada y guardada correctamente', 'success');
+      showTestResult('✅ API Key funciona correctamente', 'success');
+      
+      // Actualizar status directamente (ya validada)
+      currentStatus.textContent = '✅ Activo y validado';
+      currentStatus.className = 'value';
+      apiKeyStatus.textContent = '✅ Sí';
+      apiKeyStatus.className = 'value';
     } else {
       showMessage(`❌ Error: ${response.error}`, 'error');
     }
@@ -134,5 +217,14 @@ function showMessage(text, type) {
   }, 5000);
 }
 
-// 🚀 Iniciar al cargar
+// � Mostrar resultado de test
+function showTestResult(text, type) {
+  testResult.textContent = text;
+  testResult.className = `test-result ${type}`;
+  testResult.style.display = 'block';
+  
+  // No ocultar automáticamente, dejar visible
+}
+
+// �🚀 Iniciar al cargar
 init();

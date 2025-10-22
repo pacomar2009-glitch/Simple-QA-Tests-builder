@@ -21,8 +21,8 @@
 export class GeminiAIClient {
   constructor() {
     this.apiKey = null;
-    this.model = 'gemini-1.5-flash'; // Modelo correcto para API v1 (sin -latest)
-    this.baseURL = 'https://generativelanguage.googleapis.com/v1'; // API v1 estable
+    this.model = 'gemini-1.5-flash-8b'; // Modelo flash-8b para v1beta
+    this.baseURL = 'https://generativelanguage.googleapis.com/v1beta'; // v1beta soporta flash-8b
     this.analysisCache = new Map();
     this.maxCacheSize = 100;
     this.isInitialized = false;
@@ -44,6 +44,74 @@ export class GeminiAIClient {
     this.isInitialized = true;
     console.log('✅ Gemini IA Ligera inicializada con API key');
     return true;
+  }
+
+  /**
+   * Test de conexión real con Gemini API
+   * Hace una petición HTTP real para validar si la API key funciona
+   * @returns {Promise<{success: boolean, error?: string}>}
+   */
+  async testConnection() {
+    if (!this.apiKey || this.apiKey.trim() === '') {
+      return { success: false, error: 'No hay API key configurada' };
+    }
+
+    try {
+      const url = `${this.baseURL}/models/${this.model}:generateContent?key=${this.apiKey}`;
+      
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          contents: [{
+            parts: [{ text: 'test' }]
+          }],
+          generationConfig: {
+            maxOutputTokens: 10,
+            temperature: 0.1
+          }
+        })
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        let errorMsg = 'Error desconocido';
+        
+        try {
+          const errorJson = JSON.parse(errorText);
+          errorMsg = errorJson.error?.message || errorMsg;
+        } catch (e) {
+          errorMsg = response.statusText || errorMsg;
+        }
+
+        return { 
+          success: false, 
+          error: `HTTP ${response.status}: ${errorMsg}` 
+        };
+      }
+
+      const data = await response.json();
+      
+      // Verificar que la respuesta tiene la estructura esperada
+      if (!data.candidates || !Array.isArray(data.candidates)) {
+        return { 
+          success: false, 
+          error: 'Respuesta inválida de Gemini API' 
+        };
+      }
+
+      console.log('✅ Test de conexión Gemini exitoso');
+      return { success: true };
+
+    } catch (error) {
+      console.error('❌ Error en test de conexión Gemini:', error);
+      return { 
+        success: false, 
+        error: error.message || 'Error de red o CORS' 
+      };
+    }
   }
   
   /**

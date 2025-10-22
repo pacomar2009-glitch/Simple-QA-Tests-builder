@@ -102,6 +102,30 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       sendResponse({ success: false, error: 'Not recording' });
       return false;
       
+    case 'CONFIGURE_TEST_GEMINI':
+      // NUEVO: Test real de conexión con Gemini API
+      (async () => {
+        try {
+          if (!state.geminiAI) {
+            sendResponse({ success: false, error: 'GeminiClient no inicializado' });
+            return;
+          }
+          
+          // Inicializar temporalmente con la API key para test
+          await state.geminiAI.initialize(message.apiKey);
+          
+          // Hacer test real de conexión
+          const testResult = await state.geminiAI.testConnection();
+          
+          sendResponse(testResult);
+          
+        } catch (error) {
+          console.error('❌ Error en test de Gemini:', error);
+          sendResponse({ success: false, error: error.message });
+        }
+      })();
+      return true;
+      
     case 'CONFIGURE_GEMINI_API_KEY':
       // US#121: Configurar API key de Gemini
       chrome.storage.sync.set({ geminiApiKey: message.apiKey })

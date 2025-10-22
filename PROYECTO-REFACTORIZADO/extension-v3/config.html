@@ -126,6 +126,46 @@
       background: #e2e8f0;
     }
     
+    .btn-test {
+      background: #3b82f6;
+      color: white;
+      border: none;
+      margin-top: 10px;
+    }
+    
+    .btn-test:hover {
+      background: #2563eb;
+    }
+    
+    .test-result {
+      margin-top: 15px;
+      padding: 12px;
+      border-radius: 6px;
+      font-size: 13px;
+      display: none;
+    }
+    
+    .test-result.success {
+      background: #dcfce7;
+      color: #16a34a;
+      border: 2px solid #86efac;
+      display: block;
+    }
+    
+    .test-result.error {
+      background: #fee2e2;
+      color: #dc2626;
+      border: 2px solid #fca5a5;
+      display: block;
+    }
+    
+    .test-result.testing {
+      background: #e0f2fe;
+      color: #0284c7;
+      border: 2px solid #7dd3fc;
+      display: block;
+    }
+    
     .status-message {
       margin-top: 15px;
       padding: 12px;
@@ -214,6 +254,11 @@
         autocomplete="off"
       >
       
+      <button class="btn btn-test" id="btn-test">
+        <span>🔍</span>
+        <span>Probar Conexión</span>
+      </button>
+
       <button class="btn btn-primary" id="btn-save">
         <span>💾</span>
         <span>Guardar API Key</span>
@@ -223,6 +268,9 @@
         <span>🗑️</span>
         <span>Eliminar API Key</span>
       </button>
+      
+      <!-- TEST RESULT -->
+      <div class="test-result" id="test-result"></div>
       
       <!-- STATUS MESSAGE -->
       <div class="status-message" id="status-message"></div>
