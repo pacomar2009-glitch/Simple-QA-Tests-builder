@@ -18,14 +18,20 @@
  * - Agrupación y optimización de flujo
  */
 
+import { AdaptiveTokenManager } from './adaptive-token-manager.js';
+
 export class GeminiAIClient {
   constructor() {
     this.apiKey = null;
-    this.model = 'gemini-2.5-flash'; // Gemini 2.5 Flash - API v1 (VALIDADO)
-    this.baseURL = 'https://generativelanguage.googleapis.com/v1'; // API v1 estable
+    this.model = 'gemini-2.0-flash-exp'; // Modelo con mejores límites para extensión
+    this.baseURL = 'https://generativelanguage.googleapis.com/v1beta';
     this.analysisCache = new Map();
     this.maxCacheSize = 100;
     this.isInitialized = false;
+    
+    // 🧠 NUEVO: Adaptive Token Manager con límites Google
+    this.tokenManager = new AdaptiveTokenManager();
+    this.tokenManager.setModel(this.model);
     
     // 📊 Métricas de cache y rendimiento
     this.metrics = {
@@ -33,10 +39,12 @@ export class GeminiAIClient {
       cacheMisses: 0,
       totalAnalyses: 0,
       totalLatencyMs: 0,
-      fallbackCount: 0
+      fallbackCount: 0,
+      rateLimitHits: 0,
+      tokensUsed: 0
     };
     
-    console.log('🤖 Gemini IA Ligera creada (esperando API key)');
+    console.log('🤖 Gemini IA Ligera creada con Adaptive Token Manager');
   }
   
   /**
@@ -163,11 +171,36 @@ export class GeminiAIClient {
       return cachedResult;
     }
     
+    // 🧠 NUEVO: Verificar límites de rate con Adaptive Token Manager
+    const mockEvent = {
+      type: 'click',
+      target: elementData,
+      pageContext: pageContext
+    };
+    
+    const estimation = this.tokenManager.estimateTokens([mockEvent]);
+    const canProceed = this.tokenManager.checkLimits(estimation, this.model);
+    
+    if (!canProceed.allowed) {
+      console.warn(`⚠️ Rate limit alcanzado: ${canProceed.reason}`);
+      console.warn(`⏱️ Retry after: ${canProceed.retryAfter}s`);
+      this.metrics.rateLimitHits++;
+      this.metrics.fallbackCount++;
+      
+      // Usar fallback cuando se excede rate limit
+      return this.fallbackAnalysis(elementData, pageContext);
+    }
+    
     // Cache MISS - necesitamos llamar a Gemini
     this.metrics.cacheMisses++;
     
     // Construir prompt ligero
     const prompt = this.buildLightweightPrompt(elementData, pageContext);
+    
+    // 🧠 Calcular tokens óptimos de salida según complejidad del input
+    const optimalOutputTokens = this.tokenManager.calculateOptimalOutputTokens(estimation);
+    
+    console.log(`📊 Tokens: input ~${estimation.totalTokens}, output ${optimalOutputTokens}`);
     
     try {
       const response = await fetch(
@@ -181,7 +214,7 @@ export class GeminiAIClient {
             }],
             generationConfig: {
               temperature: 0.0, // Determinístico para JSON consistente
-              maxOutputTokens: 800, // Suficiente incluso con thinking (antes 500)
+              maxOutputTokens: optimalOutputTokens, // 🧠 ADAPTATIVO (antes fijo en 800)
               topP: 0.95,
               topK: 40,
               candidateCount: 1, // Solo una respuesta
@@ -276,13 +309,18 @@ export class GeminiAIClient {
       analysis.phase = 'PHASE_1_LIGHTWEIGHT';
       analysis.note = 'Pre-análisis. IA Agéntica refinará en FASE 2';
       
+      // 🧠 Registrar uso de tokens en Token Manager
+      const tokensUsed = result.usageMetadata?.totalTokenCount || estimation.totalTokens;
+      this.tokenManager.recordUsage(tokensUsed);
+      this.metrics.tokensUsed += tokensUsed;
+      
       // Registrar métricas
       this.metrics.totalLatencyMs += latency;
       
       // Guardar en cache
       this.addToCache(cacheKey, analysis);
       
-      console.log(`✅ Pre-análisis Gemini completo (${latency}ms) - Promedio: ${this.getAverageLatency()}ms`);
+      console.log(`✅ Pre-análisis Gemini completo (${latency}ms, ${tokensUsed} tokens) - Promedio: ${this.getAverageLatency()}ms`);
       return analysis;
       
     } catch (error) {
@@ -523,6 +561,8 @@ Responde:
    * Estadísticas completas de rendimiento
    */
   getCacheStats() {
+    const tokenStats = this.tokenManager.getUsageStats();
+    
     return {
       cache: {
         size: this.analysisCache.size,
@@ -535,13 +575,28 @@ Responde:
         totalAnalyses: this.metrics.totalAnalyses,
         averageLatencyMs: this.getAverageLatency(),
         totalLatencyMs: this.metrics.totalLatencyMs,
-        fallbackCount: this.metrics.fallbackCount
+        fallbackCount: this.metrics.fallbackCount,
+        rateLimitHits: this.metrics.rateLimitHits,
+        tokensUsed: this.metrics.tokensUsed
+      },
+      tokenManagement: {
+        model: tokenStats.currentModel,
+        limits: {
+          rpm: `${tokenStats.usage.minute.requests}/${tokenStats.limits.rpm}`,
+          tpm: `${tokenStats.usage.minute.tokens}/${tokenStats.limits.tpm}`,
+          rpd: `${tokenStats.usage.day.requests}/${tokenStats.limits.rpd}`
+        },
+        remaining: {
+          requests: tokenStats.usage.minute.remainingRequests,
+          tokens: tokenStats.usage.minute.remainingTokens
+        }
       },
       summary: {
         aiPowered: this.metrics.totalAnalyses - this.metrics.fallbackCount,
         fallbackUsed: this.metrics.fallbackCount,
         cacheEfficiency: `${this.getCacheHitRate()}% hit rate`,
-        targetMet: parseFloat(this.getCacheHitRate()) >= 40 ? '✅' : '⚠️'
+        targetMet: parseFloat(this.getCacheHitRate()) >= 40 ? '✅' : '⚠️',
+        rateLimitStatus: this.metrics.rateLimitHits === 0 ? '✅ OK' : `⚠️ ${this.metrics.rateLimitHits} hits`
       }
     };
   }
@@ -555,7 +610,13 @@ Responde:
     console.log(`Cache: ${stats.cache.hits} hits, ${stats.cache.misses} misses (${stats.cache.hitRate} hit rate)`);
     console.log(`Rendimiento: ${stats.performance.totalAnalyses} análisis, ${stats.performance.averageLatencyMs}ms promedio`);
     console.log(`AI vs Fallback: ${stats.summary.aiPowered} IA / ${stats.summary.fallbackUsed} fallback`);
+    console.log(`Rate Limits: ${stats.summary.rateLimitStatus}`);
+    console.log(`Tokens: ${stats.performance.tokensUsed} usados`);
+    console.log(`Límites actuales: RPM ${stats.tokenManagement.limits.rpm}, TPM ${stats.tokenManagement.limits.tpm}`);
     console.log(`Meta ≥40% cache hit: ${stats.summary.targetMet}`);
     console.log('==========================================');
+    
+    // Log adicional del Token Manager
+    this.tokenManager.logStats();
   }
 }
