@@ -11,7 +11,7 @@
 
 1. [Visión General](#visión-general)
 2. [FASE 1: RECORD (Chrome Extension)](#fase-1-record-chrome-extension)
-3. [FASE 2: REPLAY + OPTIMIZE (Backend n8n)](#fase-2-replay--optimize-backend-n8n)
+3. [FASE 2: REPLAY + OPTIMIZE (Backend Node.js/Express)](#fase-2-replay--optimize-backend-nodejsexpress)
 4. [Flujo End-to-End](#flujo-end-to-end)
 5. [Comparativa Técnica](#comparativa-técnica)
 6. [Decisiones de Diseño](#decisiones-de-diseño)
@@ -29,7 +29,7 @@ Este sistema de generación de tests QA está dividido en **dos fases complement
 │                                                                 │
 │  ┌────────────────────┐         ┌─────────────────────────┐   │
 │  │     FASE 1         │         │       FASE 2            │   │
-│  │   🌐 Browser       │   ═══>  │   ☁️  Backend n8n       │   │
+│  │   🌐 Browser       │   ═══>  │   ☁️  Backend Express   │   │
 │  │   (Extension v3)   │         │   (MCP + Playwright)    │   │
 │  └────────────────────┘         └─────────────────────────┘   │
 │         ↓                                  ↓                   │
@@ -205,7 +205,7 @@ fallbackAnalysis(elementData) {
 
 ---
 
-## FASE 2: REPLAY + OPTIMIZE (Backend n8n)
+## FASE 2: REPLAY + OPTIMIZE (Backend Node.js/Express)
 
 ### 🎯 Objetivo Principal
 
@@ -213,10 +213,13 @@ Recibir pasos de FASE 1, reproducirlos en un navegador real con Playwright, apli
 
 ### 📦 Componentes
 
-#### 1. n8n Workflow Orchestrator
-- **Responsabilidad**: Coordinador del flujo completo
-- **Trigger**: Webhook desde Extension (POST /test-generation)
-- **Workflow**: `TestBuilder-MCP-Runner-V2-AgenticLoop.json`
+#### 1. Express API REST (Puerto 4000)
+- **Responsabilidad**: API HTTP para recepción y procesamiento
+- **Framework**: Express + TypeScript
+- **Endpoints**:
+  - `POST /test-generation/start` - Inicia procesamiento
+  - `GET /test-generation/status/:jobId` - Consulta estado
+  - `GET /test-generation/download/:jobId` - Descarga ZIP
 
 **Payload recibido**:
 ```json
@@ -242,37 +245,75 @@ Recibir pasos de FASE 1, reproducirlos en un navegador real con Playwright, apli
 }
 ```
 
-#### 2. MCP Playwright Server (`gemini-mcp-server/`)
+**Respuesta inmediata (202 Accepted)**:
+```json
+{
+  "jobId": "job-uuid-12345",
+  "status": "processing",
+  "statusUrl": "/test-generation/status/job-uuid-12345",
+  "estimatedTime": "30s"
+}
+```
+
+#### 2. Test Generation Orchestrator
+- **Responsabilidad**: Coordinador del flujo completo
+- **Patrón**: Async/await con procesamiento en background
+- **Archivo**: `src/orchestrators/test-generation.orchestrator.ts`
+
+**Proceso**:
+1. Validar request y crear jobId
+2. Iniciar procesamiento asíncrono (no bloquea respuesta)
+3. Llamar a MCP Playwright Service
+4. Llamar a Gemini Optimizer Service
+5. Llamar a Test Generator Service
+6. Actualizar estado del job y almacenar ZIP
+
+#### 3. MCP Playwright Service
 - **Responsabilidad**: Replay real de acciones en navegador headless
+- **Archivo**: `src/services/mcp-playwright.service.ts`
 - **Features**:
   - Navegación a URL inicial
   - Ejecución secuencial de steps
   - Screenshot de cada paso
   - Captura de errores/timeouts
   - Validación de que la acción tuvo efecto
+  - Self-healing automático
 
-```javascript
-// Ejemplo de replay
-async function replayStep(step) {
-  const page = await browser.newPage();
-  await page.goto(step.url);
+```typescript
+// Ejemplo de replay con self-healing
+async replaySteps(steps: Step[], options: ReplayOptions) {
+  const results = [];
   
-  // Probar selectores del pre-ranking
-  for (const candidate of step.aiPreAnalysis.selectorPreRanking) {
+  for (const step of steps) {
     try {
-      await page.click(candidate.selector, { timeout: 5000 });
-      return { success: true, usedSelector: candidate.selector };
+      // Intentar con selectores del pre-ranking
+      const result = await this.executeStep(step, options);
+      results.push({ stepId: step.id, success: true, result });
+      
     } catch (error) {
-      // Probar siguiente
+      // SELF-HEALING: Intentar con selectores alternativos
+      const healed = await this.attemptSelfHealing(step);
+      results.push({
+        stepId: step.id,
+        success: healed.success,
+        selfHealed: healed.success,
+        selectorUsed: healed.selectorUsed
+      });
     }
   }
   
-  return { success: false, error: 'No selector worked' };
+  return {
+    totalSteps: steps.length,
+    successCount: results.filter(r => r.success).length,
+    selfHealedCount: results.filter(r => r.selfHealed).length,
+    results
+  };
 }
 ```
 
-#### 3. IA Agéntica (Gemini Pro)
-- **Responsabilidad**: Análisis profundo y optimización
+#### 4. Gemini Optimizer Service
+- **Responsabilidad**: Análisis profundo y optimización con IA
+- **Archivo**: `src/services/gemini-optimizer.service.ts`
 - **Modelo**: `gemini-2.0-pro` (máxima capacidad)
 - **Tiempo permitido**: Sin límite de latencia
 
@@ -285,89 +326,95 @@ async function replayStep(step) {
 
 2. **Inferencia semántica**:
    - Entender el propósito del caso de prueba completo
-   - Agrupar pasos relacionados
+   - Agrupar pasos relacionados (Login, Checkout, etc.)
    - Identificar assertions implícitos
 
 3. **Optimización**:
-   - Eliminar pasos redundantes
+   - Eliminar pasos redundantes (≥20% reducción)
    - Consolidar waits innecesarios
    - Añadir validaciones automáticas
 
-4. **Generación de test code**:
-   - Playwright test completo
-   - Assertions explícitos
-   - Manejo de errores
-   - Documentación inline
+4. **Agrupación de flujos**:
+   - Detectar flujos funcionales (Login, Search, Checkout)
+   - Generar nombres descriptivos
+   - Organizar en test suites
+
+#### 5. Test Generator Service
+- **Responsabilidad**: Generación de código Playwright y CSV
+- **Archivo**: `src/services/test-generator.service.ts`
+- **Formatos soportados**:
+  - Playwright test files (.spec.ts) con self-healing
+  - CSV para Jira/Xray/Azure DevOps
+  - package.json con dependencias
+  - README.md con instrucciones
 
 **Output ejemplo**:
-```javascript
-// Generado por IA Agéntica
+```typescript
+// Generado por Test Generator Service
 import { test, expect } from '@playwright/test';
 
-test('Login flow - Submit credentials', async ({ page }) => {
-  // Setup
-  await page.goto('https://example.com/login');
-  
-  // Step 1: Fill username (from FASE 1 pre-analysis)
-  await page.fill('[data-testid="username"]', 'user@example.com');
-  await expect(page.locator('[data-testid="username"]')).toHaveValue('user@example.com');
-  
-  // Step 2: Fill password
-  await page.fill('[data-testid="password"]', 'securepass123');
-  
-  // Step 3: Submit form
-  await page.click('#login-btn');
-  
-  // Assertion (inferida por IA Agéntica)
-  await expect(page).toHaveURL(/.*dashboard/);
-  await expect(page.locator('.welcome-message')).toBeVisible();
+test.describe('Login Flow', () => {
+  test('Usuario puede hacer login exitosamente', async ({ page }) => {
+    // Setup
+    await page.goto('https://example.com/login');
+    
+    // Step 1: Fill username (optimizado por Gemini)
+    await page.fill('[data-testid="username"]', 'user@example.com');
+    await expect(page.locator('[data-testid="username"]')).toHaveValue('user@example.com');
+    
+    // Step 2: Fill password
+    await page.fill('[data-testid="password"]', 'securepass123');
+    
+    // Step 3: Submit form
+    await page.click('#login-btn');
+    
+    // Assertion (inferida por IA Agéntica)
+    await expect(page).toHaveURL(/.*dashboard/);
+    await expect(page.locator('.welcome-message')).toBeVisible();
+  });
 });
 ```
-
-#### 4. Export Generator
-- **Responsabilidad**: Generar outputs en múltiples formatos
-- **Formatos soportados**:
-  - Playwright test files (.spec.ts)
-  - CSV para Jira/Xray
-  - JSON descriptivo
-  - HTML report
 
 ### 🔄 Flujo FASE 2
 
 ```
-Extension envía payload
+Extension POST /test-generation/start
       ↓
-n8n Webhook recibe
+Express API valida y crea jobId
       ↓
-MCP Playwright inicia browser
+Test Generation Orchestrator inicia
       ↓
-Replay paso 1 (probar selectores)
+MCP Playwright Service reproduce pasos
       ↓
-Screenshot + validación
+Validación + Screenshot cada paso
       ↓
-Repetir para pasos 2...N
+Gemini Optimizer Service analiza sesión
       ↓
-IA Agéntica analiza sesión completa
+Optimiza selectores + lógica (≥20% reducción pasos)
       ↓
-Optimiza selectores + lógica
+Infiere assertions automáticos
       ↓
-Genera Playwright test
+Test Generator Service crea archivos
       ↓
-Valida test generado (dry-run)
+Valida test generado (dry-run opcional)
       ↓
-Export a archivos finales
+Crea ZIP: tests/ + package.json + README.md
       ↓
-Response a extension (success + URLs)
+Almacena ZIP en job storage
+      ↓
+Status cambia a "completed" con download URL
 ```
 
 ### 📊 Métricas de Éxito FASE 2
 
-| Métrica | Objetivo |
-|---------|----------|
-| Replay success rate | ≥95% |
-| Selector optimization | +30% robustez vs FASE 1 |
-| Test generation time | <60s por sesión |
-| Generated tests validity | 100% ejecutables |
+| Métrica | Objetivo | Validación |
+|---------|----------|------------|
+| Replay success rate | ≥95% | Cada step debe ejecutarse sin timeouts |
+| Selector optimization | +30% robustez vs FASE 1 | Gemini propone mejores selectores |
+| Test generation time | <60s por sesión | Orquestador monitorea duración |
+| Generated tests validity | 100% ejecutables | Dry-run opcional pre-entrega |
+| Code reduction | ≥20% pasos optimizados | IA elimina redundancias |
+| Self-healing activado | ≥80% pasos con backup | MCP intenta selectores alternativos |
 
 ---
 
@@ -499,21 +546,22 @@ test.describe('Login Flow', () => {
 
 ## Comparativa Técnica
 
-| Aspecto | FASE 1 (Extension) | FASE 2 (Backend) |
-|---------|-------------------|------------------|
-| **Ubicación** | Browser (cliente) | Servidor n8n |
-| **Tecnología** | Chrome Extension MV3 | Node.js + Playwright + n8n |
+| Aspecto | FASE 1 (Extension) | FASE 2 (Backend Express) |
+|---------|-------------------|--------------------------|
+| **Ubicación** | Browser (cliente) | Servidor Node.js (puerto 4000) |
+| **Tecnología** | Chrome Extension MV3 | Express + TypeScript + Playwright |
 | **IA Model** | gemini-2.5-flash | gemini-2.0-pro |
 | **Latencia** | <1s por evento | 30-60s por sesión |
 | **Objetivo latencia** | Imperceptible | Completo y preciso |
 | **Cache** | Sí (≥40% hit rate) | No necesario |
-| **Fallback** | Análisis heurístico | Retry + error report |
-| **Output** | JSON semi-enriquecido | Playwright test + CSV |
-| **Validación** | Ninguna (solo captura) | Replay real + dry-run |
-| **Dependencias** | Chrome APIs | MCP Server + n8n |
-| **Escalabilidad** | 1 usuario | Múltiples sesiones paralelas |
-| **Storage** | `chrome.storage.local` (10MB) | PostgreSQL / MongoDB |
-| **Testing** | Jest (167 tests) | Playwright + Integration tests |
+| **Fallback** | Análisis heurístico | Self-healing + retry |
+| **Output** | JSON semi-enriquecido | Playwright test + CSV + ZIP |
+| **Validación** | Ninguna (solo captura) | Replay real + dry-run opcional |
+| **Dependencias** | Chrome APIs | MCP Playwright + Gemini SDK |
+| **Escalabilidad** | 1 usuario | Múltiples jobs paralelos |
+| **Storage** | `chrome.storage.local` (10MB) | Job queue + File system |
+| **Testing** | Jest (167 tests) | Jest + Playwright E2E |
+| **Deployment** | Chrome Web Store | Docker container único |
 
 ---
 
@@ -563,6 +611,28 @@ test.describe('Login Flow', () => {
 
 ---
 
+### ¿Por qué Express en lugar de n8n?
+
+#### Alternativa descartada: "n8n Workflow Orchestrator"
+❌ **Problemas**:
+- Añade complejidad: workflow JSON + Node.js backend
+- Dos stacks tecnológicos separados (n8n + Node.js)
+- Debugging más difícil (workflow visual vs código)
+- Versionado de workflows en JSON complejo
+- Deployment requiere contenedor adicional
+
+#### ✅ Solución actual: Express + TypeScript directo
+- **Simplicidad**: Un solo stack (Node.js/TypeScript)
+- **Debugging**: VS Code nativo, breakpoints, logs
+- **Testing**: Jest + Supertest para API
+- **Deployment**: Un solo Docker container
+- **Código versionado**: Git controla toda la lógica
+- **Performance**: Sin overhead de n8n engine
+
+**Backend ya existe**: `gemini-mcp-server/` tiene Express server listo
+
+---
+
 ### ¿Por qué MCP en lugar de API directa?
 
 **Model Context Protocol (MCP)** aporta:
@@ -570,6 +640,7 @@ test.describe('Login Flow', () => {
 - ✅ Gestión automática de contexto (browser, pages)
 - ✅ Retry y error handling built-in
 - ✅ Observable/debugging más simple
+- ✅ Playwright Server ya implementado en `mcp-playwright-server.js`
 
 ---
 
@@ -590,17 +661,22 @@ test.describe('Login Flow', () => {
 - [ ] Documentación de arquitectura
 - [ ] Performance benchmarks
 
-### 📅 Sprint 3: FASE 2 Foundation
-- [ ] n8n workflow base
-- [ ] MCP Playwright integration
-- [ ] Replay básico de steps
-- [ ] Error handling
-- [ ] Integration tests
+### 📅 Sprint 3: FASE 2 Backend Express (PENDIENTE)
+- [ ] Express API REST con 3 endpoints
+- [ ] Test Generation Orchestrator (async jobs)
+- [ ] MCP Playwright Service integration
+- [ ] Gemini Optimizer Service (gemini-2.0-pro)
+- [ ] Test Generator Service (Playwright + CSV)
+- [ ] Error handling + retry logic
+- [ ] Integration tests E2E
 
-### 📅 Sprint 4: FASE 2 IA Agéntica
-- [ ] Gemini Pro integration
-- [ ] Selector optimization logic
-- [ ] Test generation template
+### 📅 Sprint 4: FASE 2 Optimización y Deploy
+- [ ] Self-healing automático en MCP
+- [ ] Dry-run validation opcional
+- [ ] Performance monitoring (APM)
+- [ ] Docker compose completo
+- [ ] CI/CD pipeline
+- [ ] Documentación deployment
 - [ ] Validation/dry-run
 - [ ] US#122 completo
 
@@ -618,8 +694,8 @@ test.describe('Login Flow', () => {
 ### Diagrama de Secuencia Completo
 
 ```
-Usuario    Extension     Gemini     n8n      MCP       Gemini     Output
-           (FASE 1)      Flash              Playwright  Pro
+Usuario    Extension     Gemini     Express   MCP       Gemini     Output
+           (FASE 1)      Flash      API       Playwright  Pro
   │           │            │         │         │         │          │
   ├─Click────>│            │         │         │         │          │
   │           ├─Analyze───>│         │         │         │          │
@@ -635,7 +711,9 @@ Usuario    Extension     Gemini     n8n      MCP       Gemini     Output
   │<─Badge(3)─┤            │         │         │         │          │
   │           │            │         │         │         │          │
   ├─Stop rec.>│            │         │         │         │          │
-  │           ├─Send payload────────>│         │         │          │
+  │           ├─POST /test-generation/start──>│         │          │
+  │           │<─202 Accepted (jobId)─────────┤         │          │
+  │           │            │         ├─Orchestrator      │          │
   │           │            │         ├─Replay─>│         │          │
   │           │            │         │         ├─Step 1─>│          │
   │           │            │         │         ├─Step 2─>│          │
@@ -645,8 +723,12 @@ Usuario    Extension     Gemini     n8n      MCP       Gemini     Output
   │           │            │         │         │<─Analysis┤         │
   │           │            │         ├─Generate test────>│          │
   │           │            │         │         │<─Code────┤         │
-  │           │            │         ├─Export──────────────────────>│
-  │           │<─Success URL─────────┤         │         │          │
+  │           │            │         ├─Create ZIP───────────────────>│
+  │           │            │         ├─Store job result  │          │
+  │           ├─Poll GET /status/:jobId────>│  │         │          │
+  │           │<─200 OK (completed + downloadUrl)───────┤          │
+  │           ├─GET /download/:jobId────────>│           │          │
+  │           │<─200 OK (tests.zip)──────────┤           │          │
   │<─Notif.───┤            │         │         │         │          │
 ```
 
@@ -656,13 +738,16 @@ Usuario    Extension     Gemini     n8n      MCP       Gemini     Output
 
 Esta arquitectura de dos fases permite:
 
-1. ✅ **UX óptima**: Captura rápida sin esperas
-2. ✅ **Calidad máxima**: Validación real con replay
-3. ✅ **Escalabilidad**: Backend procesa en paralelo
-4. ✅ **Resiliencia**: Funciona sin API key (fallback)
-5. ✅ **Mantenibilidad**: Responsabilidades claras
+1. ✅ **UX óptima**: Captura rápida sin esperas (<1s por evento)
+2. ✅ **Calidad máxima**: Validación real con replay + Gemini Pro
+3. ✅ **Escalabilidad**: Backend Express procesa múltiples jobs en paralelo
+4. ✅ **Resiliencia**: Fallback heurístico si IA falla, self-healing en replay
+5. ✅ **Mantenibilidad**: Stack único (Node.js/TypeScript), no workflows visuales
+6. ✅ **Simplicidad**: Un solo Docker container, debugging nativo en VS Code
 
-La separación FASE 1 (ligera) + FASE 2 (profunda) es la decisión arquitectónica clave que permite tener velocidad Y precisión.
+La separación FASE 1 (ligera en cliente) + FASE 2 (profunda en servidor Express) es la decisión arquitectónica clave que permite tener **velocidad Y precisión**.
+
+**Decisión arquitectónica**: Eliminación de n8n en favor de Express directo simplifica deployment, debugging y versionado.
 
 ---
 

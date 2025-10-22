@@ -158,8 +158,13 @@
 **Acción:**
 1. Revisar issues de GitHub: #122, #121, #120
 2. Leer `gemini-mcp-server/` código existente
-3. Analizar n8n workflow: `TestBuilder-MCP-Runner-V2-AgenticLoop.json`
-4. Crear `FASE2-PLANNING.md` con:
+3. Implementar Express API con Test Generation Orchestrator
+4. Crear servicios TypeScript:
+   - TestGenerationOrchestrator (coordinador)
+   - MCPPlaywrightService (replay)
+   - GeminiOptimizerService (IA profunda)
+   - TestGeneratorService (código final)
+5. Crear `FASE2-PLANNING.md` con:
    - Requisitos técnicos
    - Payload contract entre FASE 1 y FASE 2
    - MCP tools necesarios

@@ -275,7 +275,7 @@ describe('Store - Centralized State Management', () => {
         actions: { items: [], selectedIds: new Set(), filters: {} },
         tests: { saved: {}, current: null, selectedIds: new Set() },
         ui: { popup: {}, dashboard: {}, badge: {} },
-        integrations: { mcp: {}, gemini: {}, n8n: {} }
+        integrations: { mcp: {}, gemini: {}, express: {} }
       };
       
       await store.initialize();
@@ -307,7 +307,7 @@ describe('Store - Centralized State Management', () => {
         },
         tests: { saved: {}, current: null, selectedIds: [] },
         ui: { popup: {}, dashboard: {}, badge: {} },
-        integrations: { mcp: {}, gemini: {}, n8n: {} }
+        integrations: { mcp: {}, gemini: {}, express: {} }
       };
       
       await store.initialize();

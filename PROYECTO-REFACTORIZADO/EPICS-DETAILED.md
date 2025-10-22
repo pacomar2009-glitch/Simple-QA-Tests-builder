@@ -49,13 +49,13 @@ Implementar OAuth2, JWT, roles iniciales y buenas prácticas (hashing, CSRF, COR
 **⏱️ Timeline:** Semanas 5-8  
 
 ### 📝 Descripción
-Captura DOM events, metadatos y control visual (grabar, pausar, detener). Envío a API local (Webhook / n8n).
+Captura DOM events, metadatos y control visual (grabar, pausar, detener). Envío directo a **API REST Backend Node.js/Express (puerto 4000)**.
 
 ### 🎯 Objetivos
 - [ ] Mejorar captura de DOM events
 - [ ] Implementar controles visuales (grabar/pausar/detener)
 - [ ] Capturar metadatos de interacciones
-- [ ] Integrar envío a API local
+- [ ] Integrar envío a API REST Backend Express (POST /test-generation/start)
 - [ ] Optimizar performance de grabación
 - [ ] Testing en diferentes tipos de páginas web
 

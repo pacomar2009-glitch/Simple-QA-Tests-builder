@@ -152,15 +152,15 @@ async preAnalyzeElement(elementData, pageContext) {
 
 ---
 
-### Paso 5: Preparar Integración con Backend (FASE 2)
+### Paso 5: Preparar Integración con Backend Express (FASE 2)
 **Archivo a crear:** `INTEGRACION-BACKEND.md`
 
 **Contenido:**
 ```markdown
-# Integración Backend n8n (FASE 2)
+# Integración Backend Node.js/Express (FASE 2)
 
 ## Endpoint Backend
-POST http://localhost:5678/webhook/record-session
+POST http://localhost:4000/test-generation/start
 
 ## Formato de Payload
 {
@@ -177,16 +177,25 @@ POST http://localhost:5678/webhook/record-session
   ],
   "metadata": {
     "phase": "PHASE_1_RECORDED",
-    "nextPhase": "PHASE_2_AGENTIC_REPLAY"
+    "nextPhase": "PHASE_2_AGENTIC_REPLAY",
+    "browser": "Chrome",
+    "extensionVersion": "0.1.0"
   }
 }
 
-## Respuesta Esperada
+## Respuesta Esperada (202 Accepted)
 {
-  "success": true,
-  "sessionId": "session-1729600000000",
-  "message": "🤖 IA Agéntica procesará estos pasos"
+  "jobId": "job-uuid-12345",
+  "status": "processing",
+  "statusUrl": "/test-generation/status/job-uuid-12345",
+  "estimatedTime": "30s"
 }
+
+## Consultar Estado
+GET http://localhost:4000/test-generation/status/job-uuid-12345
+
+## Descargar Tests Generados
+GET http://localhost:4000/test-generation/download/job-uuid-12345
 ```
 
 ---
@@ -199,8 +208,9 @@ POST http://localhost:5678/webhook/record-session
 - **Próximo hito:** Integración con captura (Paso 1)
 - [Ver issue](https://github.com/pacomar2009-glitch/Simple-QA-Tests-builder/issues/121)
 
-### US#122 - IA Agéntica (PENDIENTE) ⏳
-- **Status:** Diseño completado, implementación en Sprint 3
+### US#122 - IA Agéntica Backend Node.js (PENDIENTE) ⏳
+- **Status:** Arquitectura actualizada (sin n8n), implementación en Sprint 3
+- **Tecnología:** Node.js/Express + TypeScript
 - **Dependencias:** US#120, US#121
 - **Prioridad:** CRÍTICA (Cerebro del sistema)
 - [Ver issue](https://github.com/pacomar2009-glitch/Simple-QA-Tests-builder/issues/122)
@@ -299,10 +309,11 @@ npm test -- --coverage
 - [ ] Commit y push a GitHub
 
 ### Siguiente US#122 (Sprint 3)
-- Backend n8n con workflow agéntico
-- MCP Playwright para replay
-- Gemini IA profunda para optimización
-- Generación de tests Playwright + CSV
+- Backend Node.js/Express con Test Generation Orchestrator
+- MCP Playwright Service para replay
+- Gemini IA Optimizer Service para optimización profunda
+- Test Generator Service para Playwright + CSV
+- API REST con 3 endpoints (start, status, download)
 
 ---
 

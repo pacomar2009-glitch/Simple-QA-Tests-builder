@@ -20,28 +20,28 @@
 ### **📊 Componentes Principales**
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                        TESTS ANALYTICS v2.0                     │
-├─────────────────────┬─────────────────────┬─────────────────────┤
-│  CHROME EXTENSION   │   GEMINI MCP SERVER │    N8N WORKFLOWS   │
-│                     │                     │                     │
-│  ┌─────────────────┐│  ┌─────────────────┐│  ┌─────────────────┐│
-│  │ • Popup v2.0    ││  │ • Agentic Loop  ││  │ • TestBuilder   ││
-│  │ • Background.js ││  │ • MCP Server    ││  │   Runner        ││
-│  │ • Content       ││  │ • Express API   ││  │ • Integration   ││
-│  │   Enhanced v2   ││  │ • Gemini AI     ││  │   Workflows     ││
-│  │ • Badge Manager ││  │ • Playwright    ││  │                 ││
-│  │ • State Service ││  │   Control       ││  │                 ││
-│  └─────────────────┘│  └─────────────────┘│  └─────────────────┘│
-└─────────────────────┴─────────────────────┴─────────────────────┘
-            │                       │                       │
-            │        HTTP/MCP       │         HTTP          │
-            └───────────────────────┼───────────────────────┘
+┌──────────────────────────────────────────────────────────────────────┐
+│                        TESTS ANALYTICS v2.0                          │
+├──────────────────────────────┬───────────────────────────────────────┤
+│      CHROME EXTENSION        │     BACKEND NODE.JS/EXPRESS (4000)   │
+│                              │                                       │
+│  ┌──────────────────────────┐│  ┌───────────────────────────────────┐│
+│  │ • Popup v2.0             ││  │ • Test Generation Orchestrator   ││
+│  │ • Background.js          ││  │ • MCP Playwright Service         ││
+│  │ • Content Enhanced v2    ││  │ • Gemini Optimizer Service       ││
+│  │ • Badge Manager          ││  │ • Test Generator Service         ││
+│  │ • State Service          ││  │ • Express API REST               ││
+│  │ • Gemini IA Ligera       ││  │ • Gemini IA Profunda (Pro)       ││
+│  └──────────────────────────┘│  └───────────────────────────────────┘│
+└──────────────────────────────┴───────────────────────────────────────┘
+            │                                       │
+            │          POST /test-generation/start  │
+            └───────────────────────────────────────┘
                                    │
-                    ┌─────────────────────────┐
-                    │    PLAYWRIGHT BROWSER   │
-                    │   (Sesión Persistente)  │
-                    └─────────────────────────┘
+                    ┌──────────────────────────────┐
+                    │    PLAYWRIGHT BROWSER        │
+                    │   (Replay + Validación)      │
+                    └──────────────────────────────┘
 ```
 
 ### **🔄 Flujo de Trabajo Completo**
@@ -327,25 +327,28 @@ Si ya completaste todos los pasos del flujo capturado, responde con texto indica
 
 ---
 
-## 📊 **N8N WORKFLOWS - INTEGRACIÓN EMPRESARIAL**
+## 📊 **BACKEND NODE.JS/EXPRESS - INTEGRACIÓN EMPRESARIAL**
 
-### **🔧 Workflow Principal: TestBuilder-MCP-Runner-V2-AgenticLoop.json**
+### **🔧 API REST Principal: Test Generation Orchestrator**
 
-#### **Características del Workflow:**
-- ✅ **Webhook endpoint** para recibir datos de la extension
-- ✅ **Integración directa** con Gemini MCP Server
-- ✅ **Procesamiento de screenshots** y contexto visual
-- ✅ **Generación automática** de tests Playwright
-- ✅ **Sistema de notificaciones** para status y resultados
-- ✅ **Manejo de errores** robusto con reintentos
+#### **Características del Backend:**
+- ✅ **Express API REST** con endpoints asíncronos (puerto 4000)
+- ✅ **Test Generation Orchestrator** coordina todo el flujo
+- ✅ **MCP Playwright Service** reproduce acciones capturadas
+- ✅ **Gemini Optimizer Service** análisis profundo con IA (gemini-2.0-pro)
+- ✅ **Test Generator Service** genera Playwright + CSV
+- ✅ **Sistema de jobs** asíncrono con polling de estado
+- ✅ **Self-healing** automático en replay
 
 #### **Flujo de Datos:**
 ```
-1. Chrome Extension → Webhook n8n (datos capturados)
-2. n8n → Gemini MCP Server (procesamiento agéntico)  
-3. Gemini MCP → Playwright (ejecución de acciones)
-4. Playwright → n8n (resultados y test generado)
-5. n8n → Sistema destino (almacenamiento/notificación)
+1. Chrome Extension → POST /test-generation/start (pasos capturados)
+2. Express API → Test Generation Orchestrator (crea job asíncrono)
+3. Orchestrator → MCP Playwright Service (replay con validación)  
+4. MCP Playwright → Browser headless (ejecución real)
+5. Orchestrator → Gemini Optimizer Service (análisis profundo IA)
+6. Orchestrator → Test Generator Service (genera archivos finales)
+7. Extension → GET /test-generation/download/:jobId (descarga ZIP)
 ```
 
 ### **⚙️ Configuración Docker**
@@ -354,21 +357,28 @@ Si ya completaste todos los pasos del flujo capturado, responde con texto indica
 # docker-compose.yml
 version: '3.8'
 services:
-  n8n:
-    image: n8nio/n8n:latest
+  backend-express:
+    build: ./gemini-mcp-server
     ports:
-      - "5678:5678"
+      - "4000:4000"
     environment:
-      - N8N_BASIC_AUTH_ACTIVE=false
-      - N8N_HOST=localhost
-      - N8N_PORT=5678
-      - N8N_PROTOCOL=http
+      - NODE_ENV=production
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - MCP_PLAYWRIGHT_URL=http://localhost:3000
     volumes:
-      - n8n_data:/home/node/.n8n
-      - ./n8n-config:/home/node/.n8n/config
+      - test_generation_jobs:/app/jobs
+      - ./gemini-mcp-server:/app
 
 volumes:
-  n8n_data:
+  test_generation_jobs:
+```
+
+**Beneficios de Express vs n8n:**
+- ✅ **Simplicidad**: Un solo stack tecnológico (Node.js/TypeScript)
+- ✅ **Debugging**: Nativo en VS Code con breakpoints
+- ✅ **Testing**: Jest + Supertest para unit + integration tests
+- ✅ **Deployment**: Un solo contenedor Docker
+- ✅ **Versionado**: Git controla toda la lógica (no workflows JSON)
 ```
 
 ---
@@ -456,24 +466,31 @@ npm run test:coverage
 4. Seleccionar carpeta `extension/`
 5. ✅ Verificar que aparece "TestBuilder - AI Test Automation"
 
-### **3️⃣ Configuración de n8n (Opcional)**
+### **3️⃣ Configuración del Backend Express (Puerto 4000)**
 
 ```powershell
-# Desde el directorio raíz del proyecto
+# Desde el directorio gemini-mcp-server/
+cd gemini-mcp-server
+
+# Configurar variable de entorno
+echo "GEMINI_API_KEY=tu-api-key-aqui" > .env
+
+# Iniciar servidor Express
+npm run start:express
+
+# Verificar que backend responde
+curl http://localhost:4000/health
+
+# Ver logs en tiempo real (producción)
 docker-compose up -d
-
-# Verificar que n8n está corriendo
-start http://localhost:5678
-
-# Ver logs en tiempo real
-docker-compose logs -f
+docker-compose logs -f backend-express
 ```
 
-**Importar el Workflow:**
-1. En n8n, ir a **Workflows → Import from File**
-2. Seleccionar `n8n-workflows/TestBuilder-MCP-Runner-V2-AgenticLoop.json`
-3. **Activar** el workflow importado
-4. **Configurar credenciales** si es necesario
+**Endpoints disponibles:**
+- `POST /test-generation/start` - Inicia generación de tests
+- `GET /test-generation/status/:jobId` - Consulta estado de job
+- `GET /test-generation/download/:jobId` - Descarga ZIP con tests
+- `GET /health` - Health check del servicio
 
 ---
 
