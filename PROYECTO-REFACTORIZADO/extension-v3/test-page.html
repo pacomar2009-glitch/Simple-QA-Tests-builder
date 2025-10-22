@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Builder - Página de Prueba</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+        }
+        .test-section {
+            background: white;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h2 {
+            color: #666;
+            margin-top: 0;
+        }
+        button {
+            padding: 10px 20px;
+            margin: 5px;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        input, textarea, select {
+            display: block;
+            width: 100%;
+            padding: 8px;
+            margin: 10px 0;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        .draggable {
+            padding: 20px;
+            margin: 10px 0;
+            background: #e3f2fd;
+            border: 2px dashed #2196F3;
+            border-radius: 4px;
+            cursor: move;
+        }
+        .drop-zone {
+            padding: 40px;
+            margin: 10px 0;
+            background: #fff3cd;
+            border: 2px dashed #ffc107;
+            border-radius: 4px;
+            text-align: center;
+            color: #856404;
+        }
+        .drop-zone.drag-over {
+            background: #d4edda;
+            border-color: #28a745;
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+            z-index: 1000;
+        }
+        .modal.active {
+            display: block;
+        }
+        .overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 999;
+        }
+        .overlay.active {
+            display: block;
+        }
+        .scroll-content {
+            height: 300px;
+            overflow-y: scroll;
+            border: 1px solid #ddd;
+            padding: 10px;
+            background: #fafafa;
+        }
+        .event-log {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            padding: 10px;
+            max-height: 200px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 12px;
+        }
+        .event-log div {
+            padding: 2px 0;
+            border-bottom: 1px solid #e9ecef;
+        }
+    </style>
+</head>
+<body>
+    <h1>🧪 Test Builder v3 - Página de Pruebas</h1>
+    <p style="text-align: center; color: #666;">
+        Usa la extensión para capturar interacciones en esta página
+    </p>
+
+    <!-- 1. CLICKS -->
+    <div class="test-section">
+        <h2>1. 🖱️ Clicks (Simple, Doble, Click Derecho)</h2>
+        <button id="btnSimpleClick">Click Simple</button>
+        <button id="btnDoubleClick">Doble Click</button>
+        <button id="btnRightClick">Click Derecho (Context Menu)</button>
+    </div>
+
+    <!-- 2. INPUTS -->
+    <div class="test-section">
+        <h2>2. ⌨️ Inputs y Forms</h2>
+        <input type="text" id="txtUsername" placeholder="Username" data-testid="username-input">
+        <input type="password" id="txtPassword" placeholder="Password" data-testid="password-input">
+        <input type="email" id="txtEmail" placeholder="Email">
+        <select id="selCountry">
+            <option value="">Selecciona un país</option>
+            <option value="es">España</option>
+            <option value="mx">México</option>
+            <option value="ar">Argentina</option>
+        </select>
+        <textarea id="txtComments" rows="3" placeholder="Comentarios"></textarea>
+        <button id="btnSubmit">Submit</button>
+    </div>
+
+    <!-- 3. FOCUS/BLUR -->
+    <div class="test-section">
+        <h2>3. 🎯 Focus y Blur</h2>
+        <input type="text" id="txtFocus1" placeholder="Focus campo 1">
+        <input type="text" id="txtFocus2" placeholder="Focus campo 2">
+        <input type="text" id="txtFocus3" placeholder="Focus campo 3">
+    </div>
+
+    <!-- 4. SCROLL -->
+    <div class="test-section">
+        <h2>4. 📜 Scroll</h2>
+        <div class="scroll-content">
+            <p>Contenido largo para scroll...</p>
+            <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit.</p>
+            <p>Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.</p>
+            <p>Ut enim ad minim veniam, quis nostrud exercitation ullamco.</p>
+            <p>Duis aute irure dolor in reprehenderit in voluptate velit.</p>
+            <p>Excepteur sint occaecat cupidatat non proident.</p>
+            <p>Sunt in culpa qui officia deserunt mollit anim id est laborum.</p>
+            <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit.</p>
+            <p>Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.</p>
+            <p>Ut enim ad minim veniam, quis nostrud exercitation ullamco.</p>
+            <p>¡Llegaste al final del scroll!</p>
+        </div>
+    </div>
+
+    <!-- 5. HOVER -->
+    <div class="test-section">
+        <h2>5. 🎯 Hover (Mouseover)</h2>
+        <button id="btnHover1" style="background: #28a745;">Hover sobre mí</button>
+        <button id="btnShowModal" style="background: #6c757d;">Mostrar Modal (Hover)</button>
+        <div id="hoverInfo" style="display: none; padding: 10px; background: #d1ecf1; margin-top: 10px; border-radius: 4px;">
+            ℹ️ Este mensaje aparece con hover
+        </div>
+    </div>
+
+    <!-- 6. DRAG AND DROP -->
+    <div class="test-section">
+        <h2>6. 🖱️ Drag & Drop</h2>
+        <div class="draggable" draggable="true" id="dragItem">
+            Arrastra este elemento 👆
+        </div>
+        <div class="drop-zone" id="dropZone">
+            Suelta aquí 📦
+        </div>
+    </div>
+
+    <!-- 7. KEYBOARD -->
+    <div class="test-section">
+        <h2>7. ⌨️ Keyboard Events</h2>
+        <input type="text" id="txtKeyboard" placeholder="Presiona Enter, Tab o Escape">
+        <div id="keyInfo" style="padding: 10px; background: #f8f9fa; margin-top: 10px; border-radius: 4px;">
+            Última tecla: <strong id="lastKey">ninguna</strong>
+        </div>
+    </div>
+
+    <!-- 8. MODAL -->
+    <div class="overlay" id="overlay"></div>
+    <div class="modal" id="modal">
+        <h3>Modal de Prueba</h3>
+        <p>Este es un modal para probar hover y clicks</p>
+        <button id="btnCloseModal">Cerrar Modal</button>
+    </div>
+
+    <!-- 9. EVENT LOG -->
+    <div class="test-section">
+        <h2>9. 📋 Log de Eventos Locales (No capturados por extensión)</h2>
+        <div class="event-log" id="eventLog">
+            <div><em>Los eventos aparecerán aquí...</em></div>
+        </div>
+        <button id="btnClearLog">Limpiar Log</button>
+    </div>
+
+    <script>
+        const eventLog = document.getElementById('eventLog');
+        
+        function logEvent(type, detail = '') {
+            const entry = document.createElement('div');
+            const timestamp = new Date().toLocaleTimeString();
+            entry.innerHTML = `<strong>[${timestamp}]</strong> ${type} ${detail}`;
+            eventLog.insertBefore(entry, eventLog.firstChild);
+            
+            // Mantener solo últimos 20 eventos
+            if (eventLog.children.length > 20) {
+                eventLog.removeChild(eventLog.lastChild);
+            }
+        }
+
+        // 1. CLICKS
+        document.getElementById('btnSimpleClick').addEventListener('click', () => {
+            logEvent('CLICK', 'Simple Click');
+        });
+
+        document.getElementById('btnDoubleClick').addEventListener('dblclick', () => {
+            logEvent('DBLCLICK', 'Double Click');
+        });
+
+        document.getElementById('btnRightClick').addEventListener('contextmenu', (e) => {
+            e.preventDefault();
+            logEvent('CONTEXTMENU', 'Right Click');
+        });
+
+        // 2. INPUTS
+        document.getElementById('btnSubmit').addEventListener('click', () => {
+            logEvent('SUBMIT', 'Form submitted');
+        });
+
+        ['txtUsername', 'txtPassword', 'txtEmail', 'selCountry', 'txtComments'].forEach(id => {
+            const el = document.getElementById(id);
+            el.addEventListener('input', () => logEvent('INPUT', `${id}: ${el.value.substring(0, 20)}`));
+            el.addEventListener('change', () => logEvent('CHANGE', `${id}: ${el.value}`));
+        });
+
+        // 3. FOCUS/BLUR
+        ['txtFocus1', 'txtFocus2', 'txtFocus3'].forEach(id => {
+            const el = document.getElementById(id);
+            el.addEventListener('focus', () => logEvent('FOCUS', id));
+            el.addEventListener('blur', () => logEvent('BLUR', id));
+        });
+
+        // 4. SCROLL
+        document.querySelector('.scroll-content').addEventListener('scroll', (e) => {
+            logEvent('SCROLL', `Y: ${Math.round(e.target.scrollTop)}px`);
+        });
+
+        // 5. HOVER
+        document.getElementById('btnHover1').addEventListener('mouseover', () => {
+            logEvent('HOVER', 'btnHover1');
+        });
+
+        document.getElementById('btnShowModal').addEventListener('mouseover', () => {
+            document.getElementById('hoverInfo').style.display = 'block';
+            logEvent('HOVER', 'btnShowModal - Info visible');
+        });
+
+        document.getElementById('btnShowModal').addEventListener('click', () => {
+            document.getElementById('overlay').classList.add('active');
+            document.getElementById('modal').classList.add('active');
+            logEvent('CLICK', 'Modal abierto');
+        });
+
+        document.getElementById('btnCloseModal').addEventListener('click', () => {
+            document.getElementById('overlay').classList.remove('active');
+            document.getElementById('modal').classList.remove('active');
+            logEvent('CLICK', 'Modal cerrado');
+        });
+
+        document.getElementById('overlay').addEventListener('click', () => {
+            document.getElementById('overlay').classList.remove('active');
+            document.getElementById('modal').classList.remove('active');
+            logEvent('CLICK', 'Modal cerrado (overlay)');
+        });
+
+        // 6. DRAG AND DROP
+        const dragItem = document.getElementById('dragItem');
+        const dropZone = document.getElementById('dropZone');
+
+        dragItem.addEventListener('dragstart', (e) => {
+            e.dataTransfer.effectAllowed = 'move';
+            e.dataTransfer.setData('text/html', dragItem.innerHTML);
+            logEvent('DRAGSTART', 'Elemento arrastrado');
+        });
+
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+            dropZone.classList.add('drag-over');
+        });
+
+        dropZone.addEventListener('dragleave', () => {
+            dropZone.classList.remove('drag-over');
+        });
+
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('drag-over');
+            dropZone.innerHTML = '<strong>✅ Elemento soltado aquí!</strong>';
+            logEvent('DROP', 'Elemento soltado en zona');
+        });
+
+        // 7. KEYBOARD
+        document.getElementById('txtKeyboard').addEventListener('keydown', (e) => {
+            document.getElementById('lastKey').textContent = e.key;
+            logEvent('KEYDOWN', `Key: ${e.key}`);
+        });
+
+        // 8. CLEAR LOG
+        document.getElementById('btnClearLog').addEventListener('click', () => {
+            eventLog.innerHTML = '<div><em>Log limpiado...</em></div>';
+        });
+
+        // Initial log
+        logEvent('READY', 'Página cargada - Extensión lista para capturar');
+    </script>
+</body>
+</html>
