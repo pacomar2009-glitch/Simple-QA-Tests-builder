@@ -45,8 +45,8 @@ describe('GeminiAIClient', () => {
     });
     
     test('should use correct model', () => {
-      expect(client.model).toBe('gemini-1.5-flash-8b'); // Modelo flash-8b para v1beta
-      expect(client.baseURL).toBe('https://generativelanguage.googleapis.com/v1beta');
+      expect(client.model).toBe('gemini-2.5-flash'); // Gemini 2.5 Flash - API v1 (VALIDADO)
+      expect(client.baseURL).toBe('https://generativelanguage.googleapis.com/v1');
     });
   });
   

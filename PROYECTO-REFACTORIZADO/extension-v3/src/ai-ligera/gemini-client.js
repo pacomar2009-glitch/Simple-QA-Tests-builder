@@ -21,8 +21,8 @@
 export class GeminiAIClient {
   constructor() {
     this.apiKey = null;
-    this.model = 'gemini-1.5-flash-8b'; // Modelo flash-8b para v1beta
-    this.baseURL = 'https://generativelanguage.googleapis.com/v1beta'; // v1beta soporta flash-8b
+    this.model = 'gemini-2.5-flash'; // Gemini 2.5 Flash - API v1 (VALIDADO)
+    this.baseURL = 'https://generativelanguage.googleapis.com/v1'; // API v1 estable
     this.analysisCache = new Map();
     this.maxCacheSize = 100;
     this.isInitialized = false;
