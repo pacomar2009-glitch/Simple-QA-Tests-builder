@@ -21,7 +21,7 @@
 export class GeminiAIClient {
   constructor() {
     this.apiKey = null;
-    this.model = 'gemini-1.5-flash-8b'; // Modelo más rápido (8B parameters)
+    this.model = 'gemini-1.5-flash'; // Modelo rápido y ligero (CORRECTO: flash sin -8b)
     this.baseURL = 'https://generativelanguage.googleapis.com/v1beta';
     this.analysisCache = new Map();
     this.maxCacheSize = 100;
