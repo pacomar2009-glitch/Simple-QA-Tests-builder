@@ -27,5 +27,7 @@
     "jest": "^29.7.0",
     "jest-environment-jsdom": "^29.7.0"
   },
-  "dependencies": {}
+  "dependencies": {
+    "jszip": "^3.10.1"
+  }
 }

@@ -7,7 +7,10 @@ import { GeminiAIClient } from '../ai-ligera/gemini-client.js';
 // 📋 US#57 - Import CasesQueueManager
 import { CasesQueueManager } from '../shared/cases-queue.js';
 
-console.log('🚀 TestBuilder Agéntico v3 - Service Worker iniciado (US#120 + US#121 + US#57)');
+// 📥 US#92 - Import Export Utils
+import { ExportUtils } from '../shared/export-utils.js';
+
+console.log('🚀 TestBuilder Agéntico v3 - Service Worker iniciado (US#120 + US#121 + US#57 + US#92)');
 
 // 🗄️ Estado global de grabación
 const state = {
@@ -186,6 +189,11 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         data: state.casesQueue.exportData() 
       });
       return false;
+      
+    // 📥 US#92 - Export y descarga de ZIP
+    case 'DOWNLOAD_EXPORT_ZIP':
+      handleExportZIP(sendResponse);
+      return true; // Async response
       
     default:
       console.warn(`⚠️ Tipo de mensaje desconocido: ${message.type}`);
@@ -522,6 +530,66 @@ function captureDebuggerEvent(event) {
   };
   
   state.capturedEvents.push(capturedEvent);
+}
+
+// 📥 US#92 - EXPORT Y DESCARGA DE ZIP
+async function handleExportZIP(sendResponse) {
+  console.log('📥 Iniciando export ZIP...');
+  
+  try {
+    // 1. Obtener datos de exportación
+    const exportData = state.casesQueue.exportData();
+    
+    if (exportData.cases.length === 0) {
+      sendResponse({ 
+        success: false, 
+        error: 'No hay casos para exportar' 
+      });
+      return;
+    }
+    
+    // 2. Crear ZIP con ExportUtils
+    const result = await ExportUtils.exportCases(exportData);
+    
+    // 3. Convertir Blob a data URL para chrome.downloads
+    const reader = new FileReader();
+    reader.onloadend = function() {
+      const dataUrl = reader.result;
+      
+      // 4. Descargar archivo
+      chrome.downloads.download({
+        url: dataUrl,
+        filename: result.filename,
+        saveAs: true // Permitir al usuario elegir ubicación
+      }, (downloadId) => {
+        if (chrome.runtime.lastError) {
+          console.error('❌ Error en descarga:', chrome.runtime.lastError);
+          sendResponse({ 
+            success: false, 
+            error: chrome.runtime.lastError.message 
+          });
+        } else {
+          console.log(`✅ ZIP exportado: ${result.filename} (${result.size} bytes)`);
+          sendResponse({ 
+            success: true, 
+            filename: result.filename,
+            size: result.size,
+            downloadId: downloadId,
+            casesExported: exportData.cases.length
+          });
+        }
+      });
+    };
+    
+    reader.readAsDataURL(result.blob);
+    
+  } catch (error) {
+    console.error('❌ Error generando ZIP:', error);
+    sendResponse({ 
+      success: false, 
+      error: error.message 
+    });
+  }
 }
 
 // 🎧 LISTENER: Detach automático si user cierra debugger

@@ -178,6 +178,15 @@
         <span class="status-label">🤖 Gemini IA:</span>
         <span class="status-value" id="gemini-status">⏳ Cargando...</span>
       </div>
+      <!-- US#57: Cola de casos -->
+      <div class="status-row">
+        <span class="status-label">📋 Casos totales:</span>
+        <span class="status-value" id="cases-count">0</span>
+      </div>
+      <div class="status-row">
+        <span class="status-label">✅ Completados:</span>
+        <span class="status-value" id="cases-completed">0</span>
+      </div>
     </div>
     
     <!-- CONTROLS -->
@@ -192,11 +201,20 @@
       </button>
     </div>
     
+    <!-- US#92: EXPORT CONTROLS -->
+    <div class="controls">
+      <button class="btn btn-export" id="btn-export" disabled style="background: #4CAF50; color: white; width: 100%;">
+        <span>📥</span>
+        <span>Download ZIP</span>
+      </button>
+    </div>
+    
     <!-- INFO -->
     <div class="info">
-      <strong>✨ US#120 + US#121:</strong> MCP Chrome DevTools + Gemini IA Ligera<br>
-      <strong>🤖 Gemini:</strong> <a href="#" id="link-config" style="color: white; text-decoration: underline;">Configurar API Key</a><br>
-      <strong>Shortcut:</strong> Ctrl+Shift+R (toggle)
+      <strong>✨ US#120 + US#121 + US#57 + US#92:</strong> MCP + Gemini IA + Cases + Export<br>
+      <strong>🤖 Gemini:</strong> <a href="#" id="link-config" style="color: #667eea; text-decoration: underline;">Configurar API Key</a><br>
+      <strong>Shortcut:</strong> Ctrl+Shift+R (toggle)<br>
+      <strong>📥 Export:</strong> Descarga ZIP con casos grabados (MVP)
     </div>
   </div>
   

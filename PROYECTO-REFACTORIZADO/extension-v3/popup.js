@@ -6,17 +6,21 @@ console.log('🎮 Popup cargado');
 // Referencias a elementos DOM
 const btnRecord = document.getElementById('btn-record');
 const btnStop = document.getElementById('btn-stop');
+const btnExport = document.getElementById('btn-export'); // US#92
 const statusEl = document.getElementById('status');
 const eventsCountEl = document.getElementById('events-count');
 const sessionIdEl = document.getElementById('session-id');
 const geminiStatusEl = document.getElementById('gemini-status'); // US#121
+const casesCountEl = document.getElementById('cases-count'); // US#57
+const casesCompletedEl = document.getElementById('cases-completed'); // US#57
 
 // Estado local
 let currentState = {
   isRecording: false,
   eventsCount: 0,
   sessionId: null,
-  geminiEnabled: false // US#121
+  geminiEnabled: false, // US#121
+  casesStats: { total: 0, completed: 0 } // US#57
 };
 
 // 🚀 INICIALIZAR POPUP
@@ -29,6 +33,7 @@ async function init() {
   // Adjuntar listeners
   btnRecord.addEventListener('click', handleRecord);
   btnStop.addEventListener('click', handleStop);
+  btnExport.addEventListener('click', handleExport); // US#92
   
   // US#121: Link a config
   const linkConfig = document.getElementById('link-config');
@@ -48,7 +53,13 @@ async function updateState() {
     const response = await chrome.runtime.sendMessage({ type: 'GET_STATE' });
     
     if (response.success) {
-      currentState = response.state;
+      currentState.isRecording = response.state.isRecording;
+      currentState.eventsCount = response.state.eventsCount;
+      currentState.sessionId = response.state.sessionId;
+      currentState.geminiEnabled = response.state.geminiEnabled;
+      // US#57: Stats de casos
+      currentState.casesStats = response.state.queueStats || { total: 0, completed: 0 };
+      
       renderState();
     }
   } catch (error) {
@@ -66,6 +77,14 @@ function renderState() {
     geminiStatusEl.textContent = '⚠️ Fallback';
     geminiStatusEl.style.color = '#f59e0b';
   }
+  
+  // US#57: Estadísticas de casos
+  casesCountEl.textContent = currentState.casesStats?.total || 0;
+  casesCompletedEl.textContent = currentState.casesStats?.completed || 0;
+  
+  // US#92: Habilitar botón de export solo si hay casos
+  const hasCases = (currentState.casesStats?.total || 0) > 0;
+  btnExport.disabled = !hasCases || currentState.isRecording;
   
   if (currentState.isRecording) {
     // GRABANDO
@@ -170,7 +189,48 @@ async function handleStop() {
   }
 }
 
-// 📢 MOSTRAR NOTIFICACIÓN
+// � US#92 - HANDLE EXPORT ZIP BUTTON
+async function handleExport() {
+  console.log('📥 Exportando casos a ZIP...');
+  
+  btnExport.disabled = true;
+  const originalText = btnExport.innerHTML;
+  btnExport.innerHTML = '<span>⏳</span><span>Exportando...</span>';
+  
+  try {
+    const response = await chrome.runtime.sendMessage({ type: 'DOWNLOAD_EXPORT_ZIP' });
+    
+    if (response.success) {
+      console.log('✅ ZIP exportado:', response);
+      
+      // Mostrar notificación de éxito
+      showNotification(
+        `✅ ZIP descargado\n${response.casesExported} casos exportados\nTamaño: ${(response.size / 1024).toFixed(2)} KB`,
+        'success'
+      );
+      
+      // Restaurar botón después de 2 segundos
+      setTimeout(() => {
+        btnExport.innerHTML = originalText;
+        btnExport.disabled = false;
+      }, 2000);
+      
+    } else {
+      console.error('❌ Error exportando ZIP:', response.error);
+      showNotification(`❌ Error: ${response.error}`, 'error');
+      btnExport.innerHTML = originalText;
+      btnExport.disabled = false;
+    }
+    
+  } catch (error) {
+    console.error('❌ Error en handleExport:', error);
+    showNotification('❌ Error de comunicación', 'error');
+    btnExport.innerHTML = originalText;
+    btnExport.disabled = false;
+  }
+}
+
+// �📢 MOSTRAR NOTIFICACIÓN
 function showNotification(message, type = 'info') {
   console.log(`[${type.toUpperCase()}] ${message}`);
   

@@ -3,9 +3,9 @@
 ## ðŸŽ¯ Resumen General
 
 ```
-Test Suites: 7 passed, 7 total
-Tests:       155 passed, 155 total
-Time:        ~5.0 seconds
+Test Suites: 8 passed, 8 total
+Tests:       169 passed, 169 total
+Time:        ~4.8 seconds
 Global Coverage: 31.17%
 HTML Report: coverage/lcov-report/index.html
 ```
@@ -16,6 +16,7 @@ HTML Report: coverage/lcov-report/index.html
 |---------|-----------|----------|-----------|-------|-------|
 | **gemini-client.js** | 57.31% | 53.65% | 90% | 56.79% | 18 |
 | **cases-queue.js** | 92.72% | 80.43% | 96.29% | 95.78% | 26+22 |
+| **export-utils.js** | - | - | - | - | 14 |
 | **service-worker.js** | 0% | 0% | 0% | 0% | 29 (mocks)* |
 | **capture.js** | 0% | 0% | 0% | 0% | 37 (mocks)* |
 
@@ -437,7 +438,8 @@ coverageThreshold: {
 **Commits relevantes**:
 - Tests iniciales: `9ca8fb37e`
 - Integration tests: `dc0445b8b`
- 
+
+ 
  
 ### 7. cases-queue-integration.test.js (22 tests) 
 **Archivo**: `src/shared/cases-queue.js` (integration with service-worker)  
@@ -482,11 +484,84 @@ coverageThreshold: {
   -  Load existing cases from storage on initialize
   -  Preserve case state across service worker restarts
 
-#### Integración con Service Worker
+#### Integraciï¿½n con Service Worker
 Estos tests validan que:
-- US#57: Cola de casos se crea automáticamente al grabar
-- US#57: Cada action capturado se añade como step al caso actual
+- US#57: Cola de casos se crea automï¿½ticamente al grabar
+- US#57: Cada action capturado se aï¿½ade como step al caso actual
 - US#57: Badge muestra '#N' del caso actual
 - US#57: Cambio entre casos sin cerrar popup
 - US#120: Casos persisten en chrome.storage.local
 - US#121: Steps incluyen aiPreAnalysis de Gemini
+ 
+ 
+### 8. export-utils.test.js (14 tests) 
+**Archivo**: `src/shared/export-utils.js`
+**User Story**: US#92 - Export ZIP (MVP)
+
+#### Tests Implementados:
+- **validateExportData** (2 tests)
+  -  Validate correct export data
+  -  Throw error for invalid data
+
+- **generateFilename** (2 tests)
+  -  Generate filename with timestamp
+  -  Generate unique filenames
+
+- **generateREADME** (2 tests)
+  -  Generate README with stats
+  -  Handle zero stats
+
+- **createZIP** (3 tests)
+  -  Create ZIP with all required files
+  -  Handle empty cases array
+  -  Create individual case files
+
+- **exportCases** (3 tests)
+  -  Export cases successfully
+  -  Throw error for invalid export data
+  -  Validate data before creating ZIP
+
+- **Integration: Full export flow** (2 tests)
+  -  Export multiple cases with steps
+  -  Handle case with many steps
+
+#### Validaciones:
+-  ZIP Blob generation
+-  Filename format validation
+-  README content generation
+-  Metadata JSON structure
+-  Individual case files in /cases folder
+-  Error handling for invalid data
+
+#### Funcionalidades Validadas:
+-  Crear ZIP con JSZip
+-  Generar cases.json con todos los casos
+-  Generar metadata.json con stats
+-  Generar README.md con instrucciones
+-  Crear carpeta /cases con casos individuales
+-  Validación de datos de exportación
+-  Timestamp en nombre de archivo
+
+#### Integración:
+- **US#57 (CasesQueueManager)**: Obtiene datos via exportData()
+- **service-worker.js**: Handler DOWNLOAD_EXPORT_ZIP
+- **popup.js**: Botón Download ZIP
+- **Chrome Downloads API**: Descarga automática
+
+---
+
+##  Próximos Pasos
+
+### Completados :
+- US#120: Base extensión + MCP Chrome DevTools (29 integration tests)
+- US#121: Gemini IA Ligera (18 unit tests + 11 popup tests)
+- US#57: CasesQueueManager (26 unit + 22 integration = 48 tests)
+- US#55: Content Script - Event Capture (37 unit tests)
+- US#92-MVP: Export ZIP básico (14 tests) ** NUEVO**
+
+### Pendientes :
+- **US#122**: IA Agéntica con MCP Playwright (FASE 2)
+- **US#92-Full**: Export con anonimización y tests Playwright
+- **Popup UI**: Mostrar últimos 3 casos + stats
+- **E2E Tests**: Tests con Chrome Extension real
+
