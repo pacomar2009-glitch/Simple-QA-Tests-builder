@@ -721,40 +721,174 @@ document.getElementById('btnSend').addEventListener('click', async () => {
   btnSend.textContent = '⏳ Enviando...';
   
   try {
-    const response = await fetch('http://localhost:5678/webhook/testbuilder/capture-v2', {
+    // Mostrar panel agéntico
+    showAgenticPanel();
+    
+    // OPCIÓN 1: Enviar directamente al backend MCP agéntico (puerto 4000)
+    // que tiene SSE integrado
+    const MCP_BACKEND_URL = 'http://localhost:4000/test-generation/mcp-generate';
+    
+    console.log('🚀 [Popup] Enviando al backend MCP agéntico:', MCP_BACKEND_URL);
+    
+    // Conectar al SSE ANTES de hacer el POST
+    const response = await fetch(MCP_BACKEND_URL, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
         sessionId: AppState.sessionId,
-        actions: AppState.recordedActions,
-        timestamp: Date.now(),
-        version: 'v2-filtered'
+        steps: AppState.recordedActions, // El backend espera "steps"
+        metadata: {
+          timestamp: Date.now(),
+          version: 'v2-agentic',
+          totalSteps: AppState.recordedActions.length
+        }
       })
     });
     
-    if (response.ok) {
-      const data = await response.json();
-      console.log('✅ [Popup v2] Enviado exitosamente:', data);
-      alert(`✅ Acciones enviadas a IA (${AppState.recordedActions.length} pasos)`);
+    if (!response.ok) {
+      throw new Error(`Backend respondió con status ${response.status}`);
+    }
+    
+    // Procesar SSE stream
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    
+    let buffer = '';
+    
+    while (true) {
+      const { done, value } = await reader.read();
       
-      // Volver a IDLE después de enviar
-      AppState.transitionTo(UIStates.IDLE);
+      if (done) {
+        console.log('✅ [SSE] Stream completado');
+        break;
+      }
+      
+      buffer += decoder.decode(value, { stream: true });
+      
+      // Procesar líneas completas
+      const lines = buffer.split('\n');
+      buffer = lines.pop() || ''; // Guardar línea incompleta
+      
+      for (const line of lines) {
+        if (line.startsWith('data: ')) {
+          try {
+            const data = JSON.parse(line.slice(6));
+            console.log('📡 [SSE] Evento:', data);
+            
+            // Update panel with phase info
+            if (data.phase && data.message) {
+              updateAgenticPanel(data.phase, data.message, data.progress);
+            }
+            
+            // Handle completion
+            if (data.phase === 'completed') {
+              setTimeout(() => {
+                hideAgenticPanel();
+                AppState.transitionTo(UIStates.IDLE);
+                alert(`✅ Test generado exitosamente!\n\nArchivo: ${data.result?.testFile || 'test.spec.ts'}`);
+              }, 2000);
+            }
+            
+            // Handle errors
+            if (data.phase === 'error') {
+              setTimeout(() => {
+                hideAgenticPanel();
+                AppState.transitionTo(UIStates.CAPTURE_COMPLETE);
+                alert(`❌ Error: ${data.message}`);
+              }, 2000);
+            }
+          } catch (parseError) {
+            console.error('❌ [SSE] Error parseando:', parseError);
+          }
+        }
+      }
+    }
     } else {
       throw new Error(`HTTP ${response.status}`);
     }
   } catch (error) {
     console.error('❌ [Popup v2] Error al enviar:', error);
-    alert(`❌ Error al enviar: ${error.message}\n\nVerifica que n8n esté corriendo en localhost:5678`);
+    alert(`❌ Error al enviar: ${error.message}\n\nVerifica que el backend MCP esté corriendo en localhost:4000`);
     
-    // Volver a CAPTURE_COMPLETE en caso de error
+    hideAgenticPanel();
     AppState.transitionTo(UIStates.CAPTURE_COMPLETE);
   } finally {
     btnSend.disabled = false;
     btnSend.textContent = '🚀 Enviar a IA';
   }
 });
+
+// ===================================
+// 🤖 Panel Agéntico - UI Feedback
+// ===================================
+
+function showAgenticPanel() {
+  const panel = document.getElementById('agenticFeedback');
+  panel.style.display = 'block';
+  
+  // Reset panel state
+  document.getElementById('agenticLog').innerHTML = '';
+  document.getElementById('agenticProgressBar').style.width = '0%';
+  document.getElementById('agenticPercent').textContent = '0%';
+  
+  console.log('🤖 [Agentic] Panel mostrado');
+}
+
+function hideAgenticPanel() {
+  const panel = document.getElementById('agenticFeedback');
+  panel.style.display = 'none';
+  console.log('🤖 [Agentic] Panel ocultado');
+}
+
+function updateAgenticPanel(phase, message, progress = null) {
+  console.log(`🤖 [Agentic] ${phase}: ${message} (${progress}%)`);
+  
+  // Update progress bar if provided
+  if (progress !== null) {
+    const progressBar = document.getElementById('agenticProgressBar');
+    const progressPercent = document.getElementById('agenticPercent');
+    progressBar.style.width = `${progress}%`;
+    progressPercent.textContent = `${progress}%`;
+  }
+  
+  // Add step to log
+  const log = document.getElementById('agenticLog');
+  const step = document.createElement('div');
+  step.className = `agentic-step ${phase}`;
+  
+  const icon = getPhaseIcon(phase);
+  const timestamp = new Date().toLocaleTimeString();
+  
+  step.innerHTML = `
+    <div class="step-icon">${icon}</div>
+    <div class="step-content">
+      <div class="step-phase">${phase.replace(/_/g, ' ')}</div>
+      <div class="step-message">${message}</div>
+    </div>
+  `;
+  
+  log.appendChild(step);
+  
+  // Auto-scroll to bottom
+  log.scrollTop = log.scrollHeight;
+}
+
+function getPhaseIcon(phase) {
+  const icons = {
+    'observing': '🔍',
+    'reasoning': '🧠',
+    'executing': '🚀',
+    'retrying': '🔄',
+    'code_generation': '📝',
+    'validating': '🧪',
+    'fixing': '🔧',
+    'completed': '✅',
+    'error': '❌'
+  };
+  return icons[phase] || '🤖';
+}
 
 // ===================================
 // 🔄 Polling para actualización en tiempo real

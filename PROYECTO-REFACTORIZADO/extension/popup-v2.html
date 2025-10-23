@@ -216,6 +216,143 @@
       animation: slideIn 0.3s ease-out;
     }
 
+    /* ===================================
+       AGENTIC FEEDBACK PANEL
+    =================================== */
+    .agentic-feedback {
+      margin: 0 20px 15px 20px;
+      padding: 15px;
+      background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+      border: 2px solid #2a5298;
+      border-radius: 12px;
+      color: white;
+      max-height: 300px;
+      overflow-y: auto;
+      animation: slideIn 0.3s ease-out;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    }
+
+    .agentic-feedback::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    .agentic-feedback::-webkit-scrollbar-track {
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 10px;
+    }
+
+    .agentic-feedback::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.3);
+      border-radius: 10px;
+    }
+
+    .agentic-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 12px;
+      padding-bottom: 10px;
+      border-bottom: 2px solid rgba(255, 255, 255, 0.2);
+    }
+
+    .agentic-title {
+      font-size: 14px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .agentic-spinner {
+      width: 16px;
+      height: 16px;
+      border: 2px solid rgba(255, 255, 255, 0.3);
+      border-top-color: white;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .agentic-progress {
+      flex: 1;
+      height: 6px;
+      background: rgba(255, 255, 255, 0.2);
+      border-radius: 10px;
+      overflow: hidden;
+    }
+
+    .agentic-progress-bar {
+      height: 100%;
+      background: linear-gradient(90deg, #4CAF50, #8BC34A);
+      border-radius: 10px;
+      transition: width 0.3s ease;
+    }
+
+    .agentic-log {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .agentic-step {
+      padding: 10px 12px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 8px;
+      font-size: 12px;
+      line-height: 1.5;
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      animation: fadeInUp 0.3s ease;
+      border-left: 3px solid transparent;
+    }
+
+    @keyframes fadeInUp {
+      from {
+        opacity: 0;
+        transform: translateY(10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .agentic-step.observing { border-left-color: #00BCD4; background: rgba(0, 188, 212, 0.15); }
+    .agentic-step.reasoning { border-left-color: #9C27B0; background: rgba(156, 39, 176, 0.15); }
+    .agentic-step.executing { border-left-color: #FF9800; background: rgba(255, 152, 0, 0.15); }
+    .agentic-step.retrying { border-left-color: #FFC107; background: rgba(255, 193, 7, 0.15); }
+    .agentic-step.code_generation { border-left-color: #4CAF50; background: rgba(76, 175, 80, 0.15); }
+    .agentic-step.validating { border-left-color: #2196F3; background: rgba(33, 150, 243, 0.15); }
+    .agentic-step.fixing { border-left-color: #F44336; background: rgba(244, 67, 54, 0.15); }
+    .agentic-step.completed { border-left-color: #8BC34A; background: rgba(139, 195, 74, 0.15); }
+
+    .step-icon {
+      font-size: 16px;
+      flex-shrink: 0;
+    }
+
+    .step-content {
+      flex: 1;
+    }
+
+    .step-phase {
+      font-weight: 700;
+      text-transform: uppercase;
+      font-size: 10px;
+      letter-spacing: 0.5px;
+      margin-bottom: 4px;
+      opacity: 0.9;
+    }
+
+    .step-message {
+      font-size: 12px;
+      line-height: 1.4;
+    }
+
     .test-info-content {
       display: flex;
       flex-direction: column;
@@ -744,6 +881,23 @@
     <!-- TEST INFO (visible cuando test launcher está activo) -->
     <div id="testInfo" class="test-info" style="display: none;">
       <!-- Se llenará dinámicamente con JavaScript -->
+    </div>
+
+    <!-- AGENTIC FEEDBACK PANEL (visible durante generación) -->
+    <div id="agenticFeedback" class="agentic-feedback" style="display: none;">
+      <div class="agentic-header">
+        <div class="agentic-title">
+          <div class="agentic-spinner"></div>
+          <span id="agenticTitle">🤖 Sistema Agéntico Trabajando...</span>
+        </div>
+        <div class="agentic-progress">
+          <div class="agentic-progress-bar" id="agenticProgressBar" style="width: 0%"></div>
+        </div>
+        <span id="agenticPercent" style="font-size: 12px; font-weight: 700;">0%</span>
+      </div>
+      <div class="agentic-log" id="agenticLog">
+        <!-- Steps will be added here dynamically -->
+      </div>
     </div>
 
     <!-- ACTIONS LIST -->
