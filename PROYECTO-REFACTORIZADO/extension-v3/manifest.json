@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "TestBuilder Agéntico v3 - US#120",
-  "version": "3.0.0",
-  "description": "Extensión Chrome Base con MCP Chrome DevTools integrado (US#120 - FASE 1)",
+  "name": "TestBuilder Agéntico - Multi-Provider AI",
+  "version": "4.2.0",
+  "description": "Extensión Chrome con soporte multi-provider IA (OpenAI, Gemini, Anthropic) + MCP Chrome DevTools integrado",
   "icons": {
     "16": "icon.png",
     "48": "icon.png",

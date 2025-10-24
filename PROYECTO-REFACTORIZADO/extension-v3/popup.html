@@ -23,8 +23,14 @@
     }
     
     .header {
-      text-align: center;
       margin-bottom: 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    
+    .header-title {
+      flex: 1;
     }
     
     .header h1 {
@@ -36,6 +42,36 @@
     .header .version {
       font-size: 11px;
       color: rgba(255,255,255,0.8);
+    }
+
+    .header-buttons {
+      display: flex;
+      gap: 8px;
+    }
+
+    .header-btn {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.2);
+      color: white;
+      border: none;
+      cursor: pointer;
+      font-size: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      backdrop-filter: blur(10px);
+    }
+
+    .header-btn:hover {
+      background: rgba(255,255,255,0.3);
+      transform: scale(1.15);
+    }
+
+    .header-btn:active {
+      transform: scale(0.95);
     }
     
     .status-card {
@@ -195,14 +231,193 @@
         transform: translateY(0);
       }
     }
+
+    /* ===================================
+       GENERATION SETTINGS PANEL
+    =================================== */
+    .gen-settings-panel {
+      background: white;
+      border-radius: 8px;
+      padding: 15px;
+      margin-bottom: 15px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      max-height: 300px;
+      overflow-y: auto;
+    }
+
+    .gen-settings-title {
+      font-size: 14px;
+      font-weight: 700;
+      color: #667eea;
+      margin-bottom: 12px;
+    }
+
+    .gen-setting-group {
+      margin-bottom: 12px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid #f0f0f0;
+    }
+
+    .gen-setting-group:last-child {
+      border-bottom: none;
+      margin-bottom: 0;
+      padding-bottom: 0;
+    }
+
+    .gen-setting-label {
+      font-size: 12px;
+      font-weight: 600;
+      color: #333;
+      margin-bottom: 6px;
+    }
+
+    .gen-setting-description {
+      font-size: 10px;
+      color: #999;
+      margin-bottom: 6px;
+    }
+
+    .gen-toggle {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+    }
+
+    .gen-toggle input[type="checkbox"] {
+      width: 38px;
+      height: 20px;
+      appearance: none;
+      background: #ccc;
+      border-radius: 10px;
+      position: relative;
+      cursor: pointer;
+      transition: background 0.3s ease;
+    }
+
+    .gen-toggle input[type="checkbox"]:checked {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    }
+
+    .gen-toggle input[type="checkbox"]::before {
+      content: '';
+      position: absolute;
+      width: 16px;
+      height: 16px;
+      background: white;
+      border-radius: 50%;
+      top: 2px;
+      left: 2px;
+      transition: left 0.3s ease;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    }
+
+    .gen-toggle input[type="checkbox"]:checked::before {
+      left: 20px;
+    }
+
+    .gen-toggle-label {
+      font-size: 11px;
+      color: #333;
+    }
+
+    .gen-select, .gen-input {
+      width: 100%;
+      padding: 6px 10px;
+      border: 1px solid #e0e0e0;
+      border-radius: 4px;
+      font-size: 11px;
+      color: #333;
+    }
+
+    .gen-input-wrapper {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .gen-input {
+      flex: 1;
+    }
+
+    .gen-input-unit {
+      font-size: 11px;
+      color: #666;
+    }
   </style>
 </head>
 <body>
   <div class="container">
     <!-- HEADER -->
     <div class="header">
-      <h1>TestBuilder Agéntico</h1>
-      <div class="version">v3.0.0 - US#124 (Single-Pass AI)</div>
+      <div class="header-title">
+        <h1>TestBuilder Agéntico</h1>
+        <div class="version">v4.0.0 - Settings Panel</div>
+      </div>
+      <div class="header-buttons">
+        <button class="header-btn" id="btnGenSettings" title="Configurar generación">⚙️</button>
+        <button class="header-btn" id="btnAISettings" title="Configurar IA">🤖</button>
+      </div>
+    </div>
+
+    <!-- GENERATION SETTINGS PANEL -->
+    <div id="genSettingsPanel" class="gen-settings-panel" style="display: none;">
+      <div class="gen-settings-title">⚙️ Configuración de Generación</div>
+
+      <!-- Browser Mode -->
+      <div class="gen-setting-group">
+        <div class="gen-setting-label">Modo Browser</div>
+        <div class="gen-setting-description">Headless es más rápido, Headed muestra el navegador.</div>
+        <label class="gen-toggle">
+          <input type="checkbox" id="genHeadless" checked>
+          <span class="gen-toggle-label" id="genHeadlessLabel">🚀 Headless</span>
+        </label>
+      </div>
+
+      <!-- Reasoning Mode -->
+      <div class="gen-setting-group">
+        <div class="gen-setting-label">Modo Razonamiento</div>
+        <div class="gen-setting-description">Verbose muestra pensamientos en tiempo real.</div>
+        <label class="gen-toggle">
+          <input type="checkbox" id="genVerbose" checked>
+          <span class="gen-toggle-label" id="genVerboseLabel">💬 Verbose</span>
+        </label>
+      </div>
+
+      <!-- Viewport -->
+      <div class="gen-setting-group">
+        <div class="gen-setting-label">Viewport</div>
+        <select class="gen-select" id="genViewport">
+          <option value="desktop">🖥️ Desktop (1920x1080)</option>
+          <option value="laptop">💻 Laptop (1366x768)</option>
+          <option value="tablet">📱 Tablet (768x1024)</option>
+          <option value="mobile">📱 Mobile (375x667)</option>
+        </select>
+      </div>
+
+      <!-- Timeout -->
+      <div class="gen-setting-group">
+        <div class="gen-setting-label">Timeout Global</div>
+        <div class="gen-input-wrapper">
+          <input type="number" class="gen-input" id="genTimeout" min="5" max="120" value="30">
+          <span class="gen-input-unit">seg</span>
+        </div>
+      </div>
+
+      <!-- Retry -->
+      <div class="gen-setting-group">
+        <div class="gen-setting-label">Reintentos</div>
+        <label class="gen-toggle">
+          <input type="checkbox" id="genRetry" checked>
+          <span class="gen-toggle-label" id="genRetryLabel">🔄 Activar</span>
+        </label>
+        <div id="genRetryCountWrapper" style="margin-top: 8px;">
+          <div class="gen-input-wrapper">
+            <input type="number" class="gen-input" id="genRetryCount" min="1" max="5" value="3">
+            <span class="gen-input-unit">intentos</span>
+          </div>
+        </div>
+      </div>
     </div>
     
     <!-- US#124: Info banner Captura RAW -->
@@ -270,12 +485,56 @@
       </button>
     </div>
     
+    <!-- MULTI-PROVIDER AI SETTINGS -->
+    <div class="controls">
+      <button class="btn btn-ai-settings" id="btn-ai-settings" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; width: 100%;">
+        <span>🤖</span>
+        <span>AI Settings (Multi-Provider)</span>
+      </button>
+    </div>
+    
+    <!-- GENERATE TEST BUTTON (MCP) -->
+    <div class="controls">
+      <button class="btn btn-generate" id="btn-generate" disabled style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; width: 100%;">
+        <span>🎭</span>
+        <span>Generar Test Playwright</span>
+      </button>
+    </div>
+    
     <!-- CLEAR/RESET BUTTON -->
     <div class="controls">
       <button class="btn btn-clear" id="btn-clear" style="background: #EF4444; color: white; width: 100%;">
         <span>🗑️</span>
         <span>Limpiar Casos</span>
       </button>
+    </div>
+    
+    <!-- TEST GENERATION PROGRESS -->
+    <div id="generation-progress" style="display: none; margin-top: 15px; padding: 15px; background: #f8f9fa; border-radius: 8px; border: 2px solid #667eea;">
+      <div style="margin-bottom: 10px;">
+        <strong style="color: #667eea;">🎭 Generando Test con MCP Playwright</strong>
+      </div>
+      
+      <!-- Progress Bar -->
+      <div style="background: #e5e7eb; border-radius: 10px; height: 20px; margin-bottom: 10px; overflow: hidden;">
+        <div id="progress-bar" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); height: 100%; width: 0%; transition: width 0.3s;"></div>
+      </div>
+      
+      <!-- Progress Text -->
+      <div id="progress-text" style="font-size: 12px; color: #6B7280; margin-bottom: 5px;">
+        Iniciando...
+      </div>
+      
+      <!-- Progress Details (logs) -->
+      <div id="progress-logs" style="max-height: 200px; overflow-y: auto; background: white; border: 1px solid #e5e7eb; border-radius: 4px; padding: 10px; font-family: monospace; font-size: 11px;">
+        <div style="color: #9CA3AF;">Esperando inicio...</div>
+      </div>
+      
+      <!-- Test Preview -->
+      <div id="test-preview" style="display: none; margin-top: 10px;">
+        <strong style="color: #10B981;">✅ Test Generado:</strong>
+        <pre id="test-code-preview" style="background: #1f2937; color: #10b981; padding: 10px; border-radius: 4px; font-size: 10px; max-height: 150px; overflow-y: auto; margin-top: 5px;"></pre>
+      </div>
     </div>
     
     <!-- INFO -->

@@ -8,6 +8,7 @@ const btnRecord = document.getElementById('btn-record');
 const btnStop = document.getElementById('btn-stop');
 const btnExport = document.getElementById('btn-export'); // US#92
 const btnConfig = document.getElementById('btn-config'); // US#121
+const btnAISettings = document.getElementById('btn-ai-settings'); // Multi-Provider AI
 const btnClear = document.getElementById('btn-clear'); // CLEAR/RESET
 const btnGenerate = document.getElementById('btn-generate'); // MCP GENERATE
 const statusEl = document.getElementById('status');
@@ -42,6 +43,7 @@ async function init() {
   btnStop.addEventListener('click', handleStop);
   btnExport.addEventListener('click', handleExport); // US#92
   btnConfig.addEventListener('click', handleConfig); // US#121
+  btnAISettings.addEventListener('click', handleAISettings); // Multi-Provider AI
   btnClear.addEventListener('click', handleClear); // CLEAR/RESET
   btnGenerate.addEventListener('click', handleGenerateTest); // MCP GENERATE
   
@@ -226,6 +228,12 @@ function handleConfig() {
   chrome.tabs.create({ url: chrome.runtime.getURL('config.html') });
 }
 
+// 🤖 Multi-Provider AI - ABRIR PÁGINA DE CONFIGURACIÓN
+function handleAISettings() {
+  console.log('🤖 Abriendo AI Settings (Multi-Provider)...');
+  chrome.tabs.create({ url: chrome.runtime.getURL('ai-settings.html') });
+}
+
 // 🗑️ LIMPIAR/RESET CASOS Y CONTADOR
 async function handleClear() {
   console.log('🗑️ Limpiando casos...');
@@ -325,6 +333,30 @@ async function handleGenerateTest() {
     const backendConfig = await chrome.storage.sync.get(['backendUrl']);
     const backendUrl = backendConfig.backendUrl || 'http://localhost:4000';
     
+    // 🤖 Obtener configuración completa de AI (providers, activeModel, API keys)
+    const aiConfigResult = await chrome.storage.sync.get('aiConfig');
+    const aiConfig = aiConfigResult.aiConfig || {
+      activeModel: 'gemini/gemini-2.0-flash-exp',
+      providers: []
+    };
+    
+    // ⚙️ Obtener configuración de generación (headless, verbose, viewport, etc.)
+    const genSettingsResult = await chrome.storage.local.get('generationSettings');
+    const genSettings = genSettingsResult.generationSettings || {
+      headless: true,
+      verbose: true,
+      viewport: 'desktop',
+      timeout: 30,
+      retry: true,
+      retryCount: 3
+    };
+    
+    console.log('🤖 ============================================');
+    console.log('🤖 GENERANDO TEST CON MODELO:', aiConfig.activeModel);
+    console.log('🤖 aiConfig completo:', aiConfig);
+    console.log('⚙️ generationSettings:', genSettings);
+    console.log('🤖 ============================================');
+    
     // Verificar que el backend esté disponible
     try {
       const healthCheck = await fetch(`${backendUrl}/health`, { 
@@ -365,7 +397,9 @@ async function handleGenerateTest() {
         sessionName: lastCase.name,
         initialUrl: lastCase.initialUrl,
         description: lastCase.description
-      }
+      },
+      aiConfig: aiConfig,  // 🤖 Pasar configuración COMPLETA (providers, models, API keys)
+      generationSettings: genSettings  // ⚙️ Pasar configuración de generación (headless, verbose, viewport, etc.)
     };
     
     progressText.textContent = 'Enviando datos al backend...';
@@ -629,7 +663,147 @@ setInterval(async () => {
   }
 }, 1000);
 
+// ===================================
+// ⚙️ GENERATION SETTINGS PANEL
+// ===================================
+const btnGenSettings = document.getElementById('btnGenSettings');
+const genSettingsPanel = document.getElementById('genSettingsPanel');
+const genHeadless = document.getElementById('genHeadless');
+const genHeadlessLabel = document.getElementById('genHeadlessLabel');
+const genVerbose = document.getElementById('genVerbose');
+const genVerboseLabel = document.getElementById('genVerboseLabel');
+const genViewport = document.getElementById('genViewport');
+const genTimeout = document.getElementById('genTimeout');
+const genRetry = document.getElementById('genRetry');
+const genRetryLabel = document.getElementById('genRetryLabel');
+const genRetryCount = document.getElementById('genRetryCount');
+const genRetryCountWrapper = document.getElementById('genRetryCountWrapper');
+
+let generationSettings = {
+  headless: true,
+  verbose: true,
+  viewport: 'desktop',
+  timeout: 30,
+  retry: true,
+  retryCount: 3
+};
+
+function loadGenerationSettings() {
+  chrome.storage.local.get(['generationSettings'], (result) => {
+    if (result.generationSettings) {
+      generationSettings = { ...generationSettings, ...result.generationSettings };
+      console.log('⚙️ [Gen Settings] Cargadas:', generationSettings);
+      
+      if (genHeadless) genHeadless.checked = generationSettings.headless;
+      if (genVerbose) genVerbose.checked = generationSettings.verbose;
+      if (genViewport) genViewport.value = generationSettings.viewport;
+      if (genTimeout) genTimeout.value = generationSettings.timeout;
+      if (genRetry) genRetry.checked = generationSettings.retry;
+      if (genRetryCount) genRetryCount.value = generationSettings.retryCount;
+      
+      updateGenLabels();
+    }
+  });
+}
+
+function saveGenerationSettings() {
+  chrome.storage.local.set({ generationSettings }, () => {
+    console.log('⚙️ [Gen Settings] Guardadas:', generationSettings);
+  });
+}
+
+function updateGenLabels() {
+  if (genHeadlessLabel) {
+    genHeadlessLabel.textContent = generationSettings.headless ? '🚀 Headless' : '🖥️ Headed';
+  }
+  if (genVerboseLabel) {
+    genVerboseLabel.textContent = generationSettings.verbose ? '💬 Verbose' : '🤫 Silencioso';
+  }
+  if (genRetryLabel) {
+    genRetryLabel.textContent = generationSettings.retry ? '🔄 Activar' : '❌ Desactivar';
+  }
+  if (genRetryCountWrapper) {
+    genRetryCountWrapper.style.display = generationSettings.retry ? 'block' : 'none';
+  }
+}
+
+if (btnGenSettings && genSettingsPanel) {
+  console.log('✅ [Gen Settings] Configurando panel');
+  
+  btnGenSettings.addEventListener('click', () => {
+    const isVisible = genSettingsPanel.style.display === 'block';
+    genSettingsPanel.style.display = isVisible ? 'none' : 'block';
+    console.log(`⚙️ [Gen Settings] Panel ${isVisible ? 'cerrado' : 'abierto'}`);
+  });
+
+  if (genHeadless) {
+    genHeadless.addEventListener('change', (e) => {
+      generationSettings.headless = e.target.checked;
+      updateGenLabels();
+      saveGenerationSettings();
+    });
+  }
+
+  if (genVerbose) {
+    genVerbose.addEventListener('change', (e) => {
+      generationSettings.verbose = e.target.checked;
+      updateGenLabels();
+      saveGenerationSettings();
+    });
+  }
+
+  if (genViewport) {
+    genViewport.addEventListener('change', (e) => {
+      generationSettings.viewport = e.target.value;
+      saveGenerationSettings();
+    });
+  }
+
+  if (genTimeout) {
+    genTimeout.addEventListener('change', (e) => {
+      generationSettings.timeout = parseInt(e.target.value, 10);
+      saveGenerationSettings();
+    });
+  }
+
+  if (genRetry) {
+    genRetry.addEventListener('change', (e) => {
+      generationSettings.retry = e.target.checked;
+      updateGenLabels();
+      saveGenerationSettings();
+    });
+  }
+
+  if (genRetryCount) {
+    genRetryCount.addEventListener('change', (e) => {
+      generationSettings.retryCount = parseInt(e.target.value, 10);
+      saveGenerationSettings();
+    });
+  }
+
+  loadGenerationSettings();
+}
+
+// ===================================
+// 🤖 EVENT LISTENER: AI SETTINGS
+// ===================================
+function setupAISettingsButton() {
+  const btnAISettings = document.getElementById('btnAISettings'); // ✅ ID correcto
+  
+  if (btnAISettings) {
+    btnAISettings.addEventListener('click', () => {
+      console.log('🤖 Abriendo AI Settings (Multi-Provider)...');
+      chrome.tabs.create({ url: chrome.runtime.getURL('ai-settings.html') });
+    });
+  } else {
+    console.warn('⚠️ Botón AI Settings no encontrado');
+  }
+}
+
+// ===================================
 // 🚀 INICIALIZAR AL CARGAR
+// ===================================
 init();
+setupAISettingsButton();
 
 console.log('✅ Popup controller configurado correctamente');
