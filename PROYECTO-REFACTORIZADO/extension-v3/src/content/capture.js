@@ -236,12 +236,36 @@ function handleScroll(event) {
   // Debounce: solo capturar después de 500ms sin scroll
   clearTimeout(scrollTimeout);
   scrollTimeout = setTimeout(() => {
+    // 🎯 MEJORA: Detectar qué elemento está ahora en el viewport (intención de scroll a elemento)
+    const viewportHeight = window.innerHeight;
+    const scrollY = window.scrollY;
+    
+    // Buscar elementos interactivos que ahora están visibles en el centro del viewport
+    const centerY = scrollY + (viewportHeight / 2);
+    const elementsInCenter = document.elementsFromPoint(
+      window.innerWidth / 2,
+      viewportHeight / 2
+    );
+    
+    // Encontrar el primer elemento interactivo
+    const interactiveTags = ['BUTTON', 'A', 'INPUT', 'SELECT', 'TEXTAREA', 'DIV', 'LI', 'ARTICLE', 'SECTION'];
+    const targetElement = elementsInCenter.find(el => 
+      interactiveTags.includes(el.tagName) && 
+      el.id || el.className || el.textContent?.trim()
+    );
+    
     const action = {
       type: 'scroll',
       timestamp: Date.now(),
       scrollX: window.scrollX,
       scrollY: window.scrollY,
-      url: window.location.href
+      url: window.location.href,
+      context: targetElement ? {
+        targetElement: targetElement.tagName,
+        targetId: targetElement.id,
+        targetClass: targetElement.className,
+        targetText: targetElement.textContent?.substring(0, 50)
+      } : null
     };
     
     sendActionToBackground(action);
@@ -250,6 +274,8 @@ function handleScroll(event) {
 
 // 🎯 HANDLE HOVER (throttled to avoid excessive events)
 let lastHoverTime = 0;
+let hoverStartTimes = new Map(); // Tracking de duración de hover
+
 function handleHover(event) {
   if (!isCapturing) return;
   
@@ -261,20 +287,71 @@ function handleHover(event) {
   lastHoverTime = now;
   
   // Solo capturar hover sobre elementos interactivos
-  const interactiveElements = ['BUTTON', 'A', 'INPUT', 'SELECT', 'TEXTAREA', 'DIV'];
+  const interactiveElements = ['BUTTON', 'A', 'INPUT', 'SELECT', 'TEXTAREA', 'DIV', 'LI', 'NAV', 'SPAN'];
   if (!interactiveElements.includes(event.target.tagName)) return;
   
-  const action = {
-    type: 'hover',
-    timestamp: now,
-    selector: generateSelector(event.target),
-    tagName: event.target.tagName,
-    text: event.target.textContent?.substring(0, 100),
-    url: window.location.href
-  };
+  const selector = generateSelector(event.target);
   
-  sendActionToBackground(action);
+  // 🎯 MEJORA: Detectar cambios de visibilidad causados por hover
+  const visibleElementsBefore = Array.from(document.querySelectorAll('*'))
+    .filter(el => {
+      const style = window.getComputedStyle(el);
+      return style.display !== 'none' && style.visibility !== 'hidden' && style.opacity !== '0';
+    }).length;
+  
+  // Esperar 300ms para detectar animaciones/transiciones
+  setTimeout(() => {
+    if (!isCapturing) return;
+    
+    const visibleElementsAfter = Array.from(document.querySelectorAll('*'))
+      .filter(el => {
+        const style = window.getComputedStyle(el);
+        return style.display !== 'none' && style.visibility !== 'hidden' && style.opacity !== '0';
+      }).length;
+    
+    const causedVisibility = visibleElementsAfter > visibleElementsBefore;
+    
+    const action = {
+      type: 'hover',
+      timestamp: now,
+      selector: selector,
+      tagName: event.target.tagName,
+      text: event.target.textContent?.substring(0, 100),
+      url: window.location.href,
+      context: {
+        causedVisibility: causedVisibility,
+        visibilityChange: visibleElementsAfter - visibleElementsBefore
+      }
+    };
+    
+    sendActionToBackground(action);
+  }, 300);
+  
+  // Tracking de inicio de hover para calcular duración
+  hoverStartTimes.set(selector, now);
 }
+
+// 🎯 NUEVO: Detectar cuando el hover termina (mouseout) para calcular duración
+document.addEventListener('mouseout', (event) => {
+  if (!isCapturing) return;
+  
+  const selector = generateSelector(event.target);
+  const startTime = hoverStartTimes.get(selector);
+  
+  if (startTime) {
+    const duration = Date.now() - startTime;
+    
+    // Si el hover duró más de 800ms, es significativo (intencional)
+    if (duration > 800) {
+      console.log(`🎯 Hover intencional detectado: ${duration}ms en ${selector}`);
+      
+      // Actualizar el último hover capturado con la duración
+      // (esto se podría mejorar guardando en background para agregar al step)
+    }
+    
+    hoverStartTimes.delete(selector);
+  }
+}, true);
 
 // 🎯 HANDLE FOCUS
 function handleFocus(event) {
