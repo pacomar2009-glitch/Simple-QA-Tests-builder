@@ -48,11 +48,17 @@ const mcpGenerator = new MCPPlaywrightGenerator(process.env.GEMINI_API_KEY);
 function buildPromptFromSteps(steps, metadata) {
   const url = metadata.url || metadata.initialUrl || 'la página web';
   
-  // 🎯 DETECTAR PATRONES DE INTENCIÓN (sin incrementar tokens significativamente)
+  // 🎯 ESTRATEGIA 2: Usar flags ya computados por la extensión + análisis adicional
   const enrichedSteps = steps.map((step, index) => {
     const prev = steps[index - 1];
     const next = steps[index + 1];
     const enriched = { ...step };
+    
+    // Si la extensión YA marcó como crítico, respetarlo
+    if (step.critical) {
+      console.log(`🎯 Step ${index + 1} ya marcado como crítico por extensión:`, step.intent);
+      return enriched;
+    }
     
     // PATRÓN 1: Hover seguido de click en mismo/similar selector = Hover CRÍTICO
     if (step.type === 'hover' && next?.type === 'click') {
@@ -65,24 +71,42 @@ function buildPromptFromSteps(steps, metadata) {
            hoverSelector.includes(clickSelector) || 
            clickSelector.includes(hoverSelector))) {
         enriched.critical = true;
-        enriched.intent = 'menu_navigation';
+        enriched.intent = enriched.intent || 'menu_navigation';
       }
     }
     
     // PATRÓN 2: Scroll seguido de hover/click = Búsqueda deliberada
     if ((step.type === 'hover' || step.type === 'click') && prev?.type === 'scroll') {
       enriched.critical = true;
-      enriched.intent = 'search_and_access';
+      enriched.intent = enriched.intent || 'search_and_access';
     }
     
     // PATRÓN 3: Hover con cambios de visibilidad (si lo capturamos)
     if (step.type === 'hover' && step.context?.causedVisibility) {
       enriched.critical = true;
-      enriched.intent = 'reveal_content';
+      enriched.intent = enriched.intent || 'reveal_content';
     }
     
     return enriched;
   });
+  
+  // 📊 Generar resumen de intenciones detectadas
+  const criticalSteps = enrichedSteps.filter(s => s.critical);
+  const intentsSummary = criticalSteps.length > 0 
+    ? `\n🎯 PASOS CRÍTICOS DETECTADOS: ${criticalSteps.length} de ${enrichedSteps.length}\n` +
+      criticalSteps.map((s, i) => {
+        const intentDesc = {
+          'menu_navigation': 'Navegación de menú (hover revela opciones)',
+          'reveal_content': 'Revelar contenido oculto (submenu/tooltip)',
+          'search_and_access': 'Búsqueda deliberada (scroll + interacción)',
+          'complete_search_flow': 'Flujo completo (scroll → hover → click)',
+          'form_submission': 'Envío de formulario',
+          'menu_activation': 'Activación tras hover'
+        }[s.intent] || 'Acción crítica';
+        
+        return `   • Paso ${enrichedSteps.indexOf(s) + 1}: ${intentDesc}`;
+      }).join('\n')
+    : '';
   
   const stepDescriptions = enrichedSteps.map((step, index) => {
     const num = index + 1;
@@ -99,6 +123,9 @@ function buildPromptFromSteps(steps, metadata) {
         return `${num}. ${critical}Pasa el mouse sobre "${hoverTarget}"`;
       
       case 'scroll':
+        if (step.context?.targetElement) {
+          return `${num}. ${critical}Desplázate hasta "${step.context.targetText || step.context.targetElement}"`;
+        }
         if (step.scrollY !== undefined) {
           return `${num}. Desplázate a posición Y: ${step.scrollY}px`;
         }
@@ -106,6 +133,9 @@ function buildPromptFromSteps(steps, metadata) {
       
       case 'click':
         const targetText = step.element?.text || step.target?.text || step.element?.tagName || 'elemento';
+        if (step.intent === 'menu_activation') {
+          return `${num}. ${critical}Haz clic en "${targetText}" (tras hover en menú)`;
+        }
         return `${num}. ${critical}Haz clic en "${targetText}"`;
         
       case 'input':
@@ -134,6 +164,7 @@ function buildPromptFromSteps(steps, metadata) {
   return `Eres un agente QA autónomo. Tu tarea es reproducir los siguientes pasos de usuario en una página web y generar un test de Playwright.
 
 URL INICIAL: ${url}
+${intentsSummary}
 
 PASOS A REPRODUCIR:
 ${stepDescriptions}

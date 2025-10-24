@@ -522,11 +522,14 @@ async function captureUserAction(action) {
   
   console.log(`📝 Acción capturada (RAW - sin IA): ${action.type}`);
   
+  // 🎯 ANÁLISIS DE PATRONES DE INTENCIÓN (Estrategia 2)
+  const enrichedAction = analyzeActionIntent(action, state.capturedEvents);
+  
   // 📦 US#124 - Captura RAW sin pre-análisis IA
   // Backend procesará con Single-Pass AI (Issue #125)
   const event = {
     type: 'user_action',
-    action,
+    action: enrichedAction, // 🎯 Acción enriquecida con flags de intención
     timestamp: Date.now(),
     sessionId: state.sessionId,
     capturePhase: 'RAW_CAPTURE', // US#124: Indica captura sin IA
@@ -539,28 +542,130 @@ async function captureUserAction(action) {
   if (state.casesQueue) {
     const stepData = {
       number: state.capturedEvents.length,
-      type: action.type,
-      selector: action.selector,
-      value: action.value || null,
-      text: action.text || null,
-      tagName: action.tagName,
-      attributes: action.attributes,
-      position: action.position,
-      url: action.url,
-      pageTitle: action.pageTitle,
+      type: enrichedAction.type,
+      selector: enrichedAction.selector,
+      value: enrichedAction.value || null,
+      text: enrichedAction.text || null,
+      tagName: enrichedAction.tagName,
+      attributes: enrichedAction.attributes,
+      position: enrichedAction.position,
+      url: enrichedAction.url,
+      pageTitle: enrichedAction.pageTitle,
       timestamp: Date.now(),
-      capturePhase: 'RAW_CAPTURE' // US#124: Sin aiPreAnalysis
+      capturePhase: 'RAW_CAPTURE', // US#124: Sin aiPreAnalysis
+      // 🎯 FLAGS DE INTENCIÓN (Estrategia 2)
+      critical: enrichedAction.critical || false,
+      intent: enrichedAction.intent || null,
+      context: enrichedAction.context || null
     };
     
     await state.casesQueue.addStepToCurrentCase(stepData);
   }
   
   console.log(`📝 Evento RAW guardado (US#124):`, {
-    type: action.type,
-    selector: action.selector,
+    type: enrichedAction.type,
+    selector: enrichedAction.selector,
+    critical: enrichedAction.critical,
+    intent: enrichedAction.intent,
     capturePhase: 'RAW_CAPTURE',
     note: 'Backend procesará con Single-Pass AI'
   });
+}
+
+// 🎯 NUEVA FUNCIÓN: Analizar intención de la acción
+function analyzeActionIntent(action, previousEvents) {
+  const enriched = { ...action };
+  
+  // Obtener últimos 3 eventos para detectar patrones
+  const recentEvents = previousEvents.slice(-3).map(e => e.action);
+  const prevAction = recentEvents[recentEvents.length - 1];
+  const prevPrevAction = recentEvents[recentEvents.length - 2];
+  
+  // PATRÓN 1: Hover seguido de click en mismo selector = Hover CRÍTICO
+  if (
+    action.type === 'click' &&
+    prevAction?.type === 'hover' &&
+    areSimilarSelectors(action.selector, prevAction.selector)
+  ) {
+    // Marcar el hover previo como crítico (si todavía no está marcado)
+    if (previousEvents.length > 0) {
+      const lastEvent = previousEvents[previousEvents.length - 1];
+      if (lastEvent.action?.type === 'hover') {
+        lastEvent.action.critical = true;
+        lastEvent.action.intent = 'menu_navigation';
+      }
+    }
+    
+    // El click también es crítico
+    enriched.critical = true;
+    enriched.intent = 'menu_activation';
+  }
+  
+  // PATRÓN 2: Scroll seguido de hover/click = Búsqueda deliberada
+  if (
+    (action.type === 'hover' || action.type === 'click') &&
+    prevAction?.type === 'scroll'
+  ) {
+    enriched.critical = true;
+    enriched.intent = 'search_and_access';
+  }
+  
+  // PATRÓN 3: Hover con cambios de visibilidad (si lo capturamos)
+  if (
+    action.type === 'hover' &&
+    action.context?.causedVisibility
+  ) {
+    enriched.critical = true;
+    enriched.intent = 'reveal_content';
+  }
+  
+  // PATRÓN 4: Secuencia completa Scroll → Hover → Click
+  if (
+    action.type === 'click' &&
+    prevAction?.type === 'hover' &&
+    prevPrevAction?.type === 'scroll'
+  ) {
+    enriched.critical = true;
+    enriched.intent = 'complete_search_flow';
+    
+    // Marcar los dos pasos previos como críticos también
+    if (previousEvents.length >= 2) {
+      previousEvents[previousEvents.length - 1].action.critical = true;
+      previousEvents[previousEvents.length - 2].action.critical = true;
+    }
+  }
+  
+  // PATRÓN 5: Input seguido de submit/click en botón = Formulario
+  if (
+    action.type === 'click' &&
+    prevAction?.type === 'input' &&
+    (action.tagName === 'BUTTON' || action.text?.toLowerCase().includes('submit'))
+  ) {
+    enriched.critical = true;
+    enriched.intent = 'form_submission';
+  }
+  
+  return enriched;
+}
+
+// 🎯 HELPER: Comparar selectores similares
+function areSimilarSelectors(selector1, selector2) {
+  if (!selector1 || !selector2) return false;
+  
+  // Exactamente iguales
+  if (selector1 === selector2) return true;
+  
+  // Uno contiene al otro (parent-child)
+  if (selector1.includes(selector2) || selector2.includes(selector1)) {
+    return true;
+  }
+  
+  // Mismo ID o clase principal
+  const id1 = selector1.match(/#[\w-]+/)?.[0];
+  const id2 = selector2.match(/#[\w-]+/)?.[0];
+  if (id1 && id2 && id1 === id2) return true;
+  
+  return false;
 }
 
 // 📝 CAPTURAR EVENTO DEL DEBUGGER (ULTRA-FILTRADO para capture-only)
